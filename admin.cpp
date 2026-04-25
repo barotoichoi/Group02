@@ -5,6 +5,7 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
+#include <cstdlib>
 
 namespace {
 std::string trim(const std::string& value) {
@@ -65,19 +66,110 @@ void pauseScreen() {
     std::cin.get();
 }
 
-void runCourseMenu() {
+void exitProgram() {
+    std::cout << "Da thoat chuong trinh.\n";
+    std::exit(0);
+}
+
+std::string getField(const UserRecord& record, size_t index) {
+    if (index >= record.fields.size()) {
+        return "";
+    }
+
+    return record.fields[index];
+}
+
+std::string findTeacherName(const std::vector<UserRecord>& teachers, const std::string& teacherId) {
+    for (const UserRecord& teacher : teachers) {
+        if (getField(teacher, 0) == teacherId) {
+            return getField(teacher, 1);
+        }
+    }
+
+    return "Khong tim thay giao vien";
+}
+
+int countEnrollmentsByCourse(const std::vector<UserRecord>& enrollments, const std::string& courseId) {
+    int count = 0;
+
+    for (const UserRecord& enrollment : enrollments) {
+        if (getField(enrollment, 2) == courseId) {
+            ++count;
+        }
+    }
+
+    return count;
+}
+
+std::string formatDate(const std::string& date) {
+    std::string result;
+
+    for (char ch : date) {
+        if (ch == '/' || ch == '-') {
+            result += "-";
+        } else {
+            result += ch;
+        }
+    }
+
+    return result;
+}
+
+void printCourseEnrollmentList(const std::string& baseDir) {
+    const std::vector<UserRecord> courses = loadUserList(joinPath(baseDir, "course.csv"));
+    const std::vector<UserRecord> enrollments = loadUserList(joinPath(baseDir, "enrollment.csv"));
+    const std::vector<UserRecord> teachers = loadUserList(joinPath(baseDir, "teacher.csv"));
+
+    std::cout << "\n===== DANH SACH KHOA HOC VA DANG KY =====\n";
+
+    if (courses.empty()) {
+        std::cout << "Chua co du lieu khoa hoc.\n";
+        return;
+    }
+
+    for (const UserRecord& course : courses) {
+        const std::string courseId = getField(course, 0);
+        const std::string courseName = getField(course, 1);
+        const std::string teacherId = getField(course, 3);
+        const std::string teacherName = findTeacherName(teachers, teacherId);
+        const int registeredCount = countEnrollmentsByCourse(enrollments, courseId);
+
+        std::cout << "\nMa khoa hoc: " << courseId << '\n';
+        std::cout << "Ten khoa hoc: " << courseName << '\n';
+        std::cout << "Giao vien: " << teacherName << " (" << teacherId << ")\n";
+        std::cout << "So sinh vien dang ky: " << registeredCount << '\n';
+
+        bool hasEnrollment = false;
+        for (const UserRecord& enrollment : enrollments) {
+            if (getField(enrollment, 2) == courseId) {
+                hasEnrollment = true;
+                std::cout << "Ngay dang ky: " << formatDate(getField(enrollment, 3)) << '\n';
+                std::cout << "Trang thai: " << getField(enrollment, 4) << '\n';
+            }
+        }
+
+        if (!hasEnrollment) {
+            std::cout << "Chua co sinh vien dang ky.\n";
+        }
+    }
+}
+
+void runCourseMenu(const std::string& baseDir) {
     while (true) {
         std::cout << "\n===== QUAN LY KHOA HOC =====\n";
-        std::cout << "1. Xem danh sach khoa hoc\n";
+        std::cout << "1. Xem khoa hoc va thong tin dang ky\n";
         std::cout << "0. Quay lai menu admin\n";
+        std::cout << "9. Thoat chuong trinh\n";
 
         switch (readChoice()) {
             case 1:
-                std::cout << "Chuc nang xem danh sach khoa hoc dang duoc phat trien.\n";
+                printCourseEnrollmentList(baseDir);
                 pauseScreen();
                 break;
             case 0:
                 return;
+            case 9:
+                exitProgram();
             default:
                 std::cout << "Lua chon khong hop le. Vui long chon lai.\n";
                 break;
@@ -90,6 +182,7 @@ void runPaymentMenu() {
         std::cout << "\n===== QUAN LY KHOAN THANH TOAN =====\n";
         std::cout << "1. Xem danh sach khoan thanh toan\n";
         std::cout << "0. Quay lai menu admin\n";
+        std::cout << "9. Thoat chuong trinh\n";
 
         switch (readChoice()) {
             case 1:
@@ -98,6 +191,8 @@ void runPaymentMenu() {
                 break;
             case 0:
                 return;
+            case 9:
+                exitProgram();
             default:
                 std::cout << "Lua chon khong hop le. Vui long chon lai.\n";
                 break;
@@ -157,6 +252,7 @@ void runDanhSachNguoiDung(const std::string& baseDir) {
         std::cout << "3. In danh sach Admin\n";
         std::cout << "4. In tat ca danh sach\n";
         std::cout << "0. Thoat\n";
+        std::cout << "9. Thoat chuong trinh\n";
         std::cout << "Nhap lua chon: ";
 
         if (!(std::cin >> choice)) {
@@ -184,6 +280,8 @@ void runDanhSachNguoiDung(const std::string& baseDir) {
             case 0:
                 std::cout << "Da thoat menu danh sach.\n";
                 return;
+            case 9:
+                exitProgram();
             default:
                 std::cout << "Lua chon khong hop le. Vui long chon lai.\n";
                 break;
@@ -196,6 +294,7 @@ void runStudentMenu(const std::string& baseDir) {
         std::cout << "\n===== QUAN LY SINH VIEN =====\n";
         std::cout << "1. Xem danh sach sinh vien\n";
         std::cout << "0. Quay lai\n";
+        std::cout << "9. Thoat chuong trinh\n";
 
         switch (readChoice()) {
             case 1:
@@ -204,6 +303,8 @@ void runStudentMenu(const std::string& baseDir) {
                 break;
             case 0:
                 return;
+            case 9:
+                exitProgram();
             default:
                 std::cout << "Lua chon khong hop le. Vui long chon lai.\n";
                 break;
@@ -216,6 +317,7 @@ void runTeacherMenu(const std::string& baseDir) {
         std::cout << "\n===== QUAN LY GIAO VIEN =====\n";
         std::cout << "1. Xem danh sach giao vien\n";
         std::cout << "0. Quay lai\n";
+        std::cout << "9. Thoat chuong trinh\n";
 
         switch (readChoice()) {
             case 1:
@@ -224,6 +326,8 @@ void runTeacherMenu(const std::string& baseDir) {
                 break;
             case 0:
                 return;
+            case 9:
+                exitProgram();
             default:
                 std::cout << "Lua chon khong hop le. Vui long chon lai.\n";
                 break;
@@ -239,6 +343,7 @@ void runAdminMenu(const std::string& baseDir) {
         std::cout << "3. Quan ly khoa hoc\n";
         std::cout << "4. Quan ly khoan thanh toan\n";
         std::cout << "0. Dang xuat\n";
+        std::cout << "9. Thoat chuong trinh\n";
 
         switch (readChoice()) {
             case 1:
@@ -248,13 +353,15 @@ void runAdminMenu(const std::string& baseDir) {
                 runTeacherMenu(baseDir);
                 break;
             case 3:
-                runCourseMenu();
+                runCourseMenu(baseDir);
                 break;
             case 4:
                 runPaymentMenu();
                 break;
             case 0:
                 return;
+            case 9:
+                exitProgram();
             default:
                 std::cout << "Lua chon khong hop le. Vui long chon lai.\n";
                 break;

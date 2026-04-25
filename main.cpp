@@ -1,6 +1,7 @@
 #include "admin.h"
 
 #include <cctype>
+#include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <string>
@@ -100,8 +101,13 @@ bool login(const string& baseDir, LoginUser& loginUser) {
     string password;
 
     cout << "\n========== DANG NHAP HE THONG ==========\n";
-    cout << "Email: ";
+    cout << "Email (nhap 0 de thoat): ";
     getline(cin, email);
+    if (email == "0") {
+        cout << "Da thoat chuong trinh.\n";
+        exit(0);
+    }
+
     cout << "Mat khau: ";
     getline(cin, password);
 
@@ -139,8 +145,10 @@ int main() {
 
         cout << "\n1. Dang nhap lai\n";
         cout << "0. Thoat chuong trinh\n";
+        cout << "9. Thoat chuong trinh\n";
 
-        if (realChoice() == 0) {
+        const int choice = realChoice();
+        if (choice == 0 || choice == 9) {
             cout << "Da thoat chuong trinh.\n";
             return 0;
         }
