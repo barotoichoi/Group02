@@ -12,6 +12,9 @@ struct UserRecord {
 std::vector<UserRecord> loadUserList(const std::string& filePath);
 void printUserList(const std::string& title, const std::vector<UserRecord>& records);
 void runDanhSachNguoiDung(const std::string& baseDir = ".");
+void runStudentMenu(const std::string& baseDir = ".");
+void runTeacherMenu(const std::string& baseDir = ".");
+void runAdminMenu(const std::string& baseDir = ".");
 
 class Admin {
 public:
