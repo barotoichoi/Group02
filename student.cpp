@@ -27,32 +27,36 @@ string trim(const string& str) {
 }
 
 
-vector<Student> loadStudents(const string& filePath) {
-    vector<Student> students;
+vector<UserRecord> loadUserList(const string& filePath) {
+    vector<UserRecord> users;
     ifstream file(filePath);
     string line;
 
     if (!file.is_open()) {
         cout << "Khong mo duoc file!\n";
-        return students;
+        return users;
     }
 
     while (getline(file, line)) {
         if (line.empty()) continue;
 
-        Student s;
-        s.fields = split(line);
-        for (auto& field : s.fields) {
+        vector<string> fields = split(line);
+        for (auto& field : fields) {
             field = trim(field);
         }
-        students.push_back(s);
+
+        if (fields.size() < 9) continue;
+
+        UserRecord user;
+        user.fields = std::move(fields);
+        users.push_back(user);
     }
 
-    return students;
+    return users;
 }
 
 
-void printProfile(const Student& s) {
+void printProfile(const UserRecord& s) {
     cout << "\n===== THONG TIN CA NHAN =====\n";
     cout << "ID: " << s.fields[0] << endl;
     cout << "Ten: " << s.fields[1] << endl;
@@ -65,7 +69,7 @@ void printProfile(const Student& s) {
 
 
 void runLogin(const string& filePath) {
-    vector<Student> students = loadStudents(filePath);
+    vector<UserRecord> users = loadUserList(filePath);
 
     string email, password;
 
@@ -76,7 +80,7 @@ void runLogin(const string& filePath) {
     cout << "Mat khau: ";
     getline(cin, password);
 
-    for (const Student& s : students) {
+    for (const UserRecord& s : users) {
         if (s.fields.size() >= 9 &&
             s.fields[2] == email &&
             s.fields[3] == password &&
