@@ -10,7 +10,7 @@
 
 using namespace std;
 
-const string BASE_PATH = "D:/Group02/";
+const string BASE_PATH = "";
 const string COURSE_FILE = BASE_PATH + "course.csv";
 const string ENROLL_FILE = BASE_PATH + "enrollment.csv";
 const string STUDENT_FILE = BASE_PATH + "student.csv";
@@ -89,7 +89,11 @@ static string todayDDMMYYYY() {
     time_t now = time(nullptr);
     tm localTm{};
 #ifdef _WIN32
+#ifdef _MSC_VER
     localtime_s(&localTm, &now);
+#else
+    localTm = *localtime(&now);
+#endif
 #else
     localtime_r(&now, &localTm);
 #endif

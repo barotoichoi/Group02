@@ -71,7 +71,7 @@ void exitProgram() {
     std::exit(0);
 }
 
-std::string getField(const UserRecord& record, size_t index) {
+std::string getField(const UserAdminRecord& record, size_t index) {
     if (index >= record.fields.size()) {
         return "";
     }
@@ -79,8 +79,8 @@ std::string getField(const UserRecord& record, size_t index) {
     return record.fields[index];
 }
 
-std::string findTeacherName(const std::vector<UserRecord>& teachers, const std::string& teacherId) {
-    for (const UserRecord& teacher : teachers) {
+std::string findTeacherName(const std::vector<UserAdminRecord>& teachers, const std::string& teacherId) {
+    for (const UserAdminRecord& teacher : teachers) {
         if (getField(teacher, 0) == teacherId) {
             return getField(teacher, 1);
         }
@@ -89,10 +89,10 @@ std::string findTeacherName(const std::vector<UserRecord>& teachers, const std::
     return "Khong tim thay giao vien";
 }
 
-int countEnrollmentsByCourse(const std::vector<UserRecord>& enrollments, const std::string& courseId) {
+int countEnrollmentsByCourse(const std::vector<UserAdminRecord>& enrollments, const std::string& courseId) {
     int count = 0;
 
-    for (const UserRecord& enrollment : enrollments) {
+    for (const UserAdminRecord& enrollment : enrollments) {
         if (getField(enrollment, 2) == courseId) {
             ++count;
         }
@@ -101,24 +101,81 @@ int countEnrollmentsByCourse(const std::vector<UserRecord>& enrollments, const s
     return count;
 }
 
-std::string formatDate(const std::string& date) {
-    std::string result;
-
-    for (char ch : date) {
-        if (ch == '/' || ch == '-') {
-            result += "-";
-        } else {
-            result += ch;
+bool recordIdExists(const std::vector<UserAdminRecord>& records, const std::string& id) {
+    for (const UserAdminRecord& record : records) {
+        if (getField(record, 0) == id) {
+            return true;
         }
     }
 
-    return result;
+    return false;
+}
+
+std::string readRequiredText(const std::string& label) {
+    std::string value;
+
+    while (true) {
+        std::cout << label;
+        std::getline(std::cin, value);
+        value = trim(value);
+
+        if (!value.empty()) {
+            return value;
+        }
+
+        std::cout << "Gia tri khong duoc de trong.\n";
+    }
+}
+
+int readPositiveNumber(const std::string& label) {
+    std::string value;
+
+    while (true) {
+        std::cout << label;
+        std::getline(std::cin, value);
+        value = trim(value);
+
+        try {
+            const int number = std::stoi(value);
+            if (number > 0) {
+                return number;
+            }
+        } catch (...) {
+        }
+
+        std::cout << "Vui long nhap so nguyen duong.\n";
+    }
+}
+
+int toIntSafe(const std::string& value) {
+    try {
+        return std::stoi(trim(value));
+    } catch (...) {
+        return 0;
+    }
+}
+
+bool appendCourse(const std::string& filePath, const std::vector<std::string>& fields) {
+    std::ofstream fout(filePath, std::ios::app);
+    if (!fout.is_open()) {
+        std::cerr << "Khong ghi duoc file: " << filePath << '\n';
+        return false;
+    }
+
+    for (size_t i = 0; i < fields.size(); ++i) {
+        if (i > 0) {
+            fout << " | ";
+        }
+        fout << fields[i];
+    }
+    fout << '\n';
+    return true;
 }
 
 void printCourseEnrollmentList(const std::string& baseDir) {
-    const std::vector<UserRecord> courses = loadUserList(joinPath(baseDir, "course.csv"));
-    const std::vector<UserRecord> enrollments = loadUserList(joinPath(baseDir, "enrollment.csv"));
-    const std::vector<UserRecord> teachers = loadUserList(joinPath(baseDir, "teacher.csv"));
+    const std::vector<UserAdminRecord> courses = loadAdminUserList(joinPath(baseDir, "course.csv"));
+    const std::vector<UserAdminRecord> enrollments = loadAdminUserList(joinPath(baseDir, "enrollment.csv"));
+    const std::vector<UserAdminRecord> teachers = loadAdminUserList(joinPath(baseDir, "teacher.csv"));
 
     std::cout << "\n===== DANH SACH KHOA HOC VA DANG KY =====\n";
 
@@ -127,30 +184,76 @@ void printCourseEnrollmentList(const std::string& baseDir) {
         return;
     }
 
-    for (const UserRecord& course : courses) {
+    for (const UserAdminRecord& course : courses) {
         const std::string courseId = getField(course, 0);
         const std::string courseName = getField(course, 1);
+        const std::string credits = getField(course, 2);
         const std::string teacherId = getField(course, 3);
+        const int maxStudents = toIntSafe(getField(course, 4));
+        const std::string feePerCredit = getField(course, 5);
+        const std::string startDate = getField(course, 6);
+        const std::string endDate = getField(course, 7);
         const std::string teacherName = findTeacherName(teachers, teacherId);
         const int registeredCount = countEnrollmentsByCourse(enrollments, courseId);
+        const bool isClosed = maxStudents > 0 && registeredCount >= maxStudents;
 
         std::cout << "\nMa khoa hoc: " << courseId << '\n';
         std::cout << "Ten khoa hoc: " << courseName << '\n';
+        std::cout << "So tin chi: " << credits << '\n';
         std::cout << "Giao vien: " << teacherName << " (" << teacherId << ")\n";
-        std::cout << "So sinh vien dang ky: " << registeredCount << '\n';
+        std::cout << "So sinh vien: " << registeredCount << "/" << maxStudents << '\n';
+        std::cout << "Tien hoc moi tin chi: " << feePerCredit << '\n';
+        std::cout << "Ngay bat dau: " << startDate << '\n';
+        std::cout << "Ngay ket thuc: " << endDate << '\n';
+        std::cout << "Trang thai: " << (isClosed ? "Da dong" : "Dang mo") << '\n';
+    }
+}
 
-        bool hasEnrollment = false;
-        for (const UserRecord& enrollment : enrollments) {
-            if (getField(enrollment, 2) == courseId) {
-                hasEnrollment = true;
-                std::cout << "Ngay dang ky: " << formatDate(getField(enrollment, 3)) << '\n';
-                std::cout << "Trang thai: " << getField(enrollment, 4) << '\n';
-            }
-        }
+void createCourse(const std::string& baseDir) {
+    const std::string coursePath = joinPath(baseDir, "course.csv");
+    const std::string teacherPath = joinPath(baseDir, "teacher.csv");
+    const std::vector<UserAdminRecord> courses = loadAdminUserList(coursePath);
+    const std::vector<UserAdminRecord> teachers = loadAdminUserList(teacherPath);
 
-        if (!hasEnrollment) {
-            std::cout << "Chua co sinh vien dang ky.\n";
+    std::cout << "\n===== TAO KHOA HOC MOI =====\n";
+
+    std::string courseId;
+    while (true) {
+        courseId = readRequiredText("Ma khoa hoc: ");
+        if (!recordIdExists(courses, courseId)) {
+            break;
         }
+        std::cout << "Ma khoa hoc da ton tai. Vui long nhap ma khac.\n";
+    }
+
+    const std::string courseName = readRequiredText("Ten khoa hoc: ");
+    const int credits = readPositiveNumber("So tin chi: ");
+
+    std::string teacherId;
+    while (true) {
+        teacherId = readRequiredText("Ma giao vien phu trach: ");
+        if (recordIdExists(teachers, teacherId)) {
+            break;
+        }
+        std::cout << "Khong tim thay giao vien voi ma nay.\n";
+    }
+
+    const int maxStudents = readPositiveNumber("So luong sinh vien toi da: ");
+    const int feePerCredit = readPositiveNumber("Tien hoc moi tin chi: ");
+    const std::string startDate = readRequiredText("Ngay bat dau (dd/mm/yyyy): ");
+    const std::string endDate = readRequiredText("Ngay ket thuc (dd/mm/yyyy): ");
+
+    if (appendCourse(coursePath, {
+            courseId,
+            courseName,
+            std::to_string(credits),
+            teacherId,
+            std::to_string(maxStudents),
+            std::to_string(feePerCredit),
+            startDate,
+            endDate
+        })) {
+        std::cout << "Da tao khoa hoc thanh cong.\n";
     }
 }
 
@@ -158,12 +261,17 @@ void runCourseMenu(const std::string& baseDir) {
     while (true) {
         std::cout << "\n===== QUAN LY KHOA HOC =====\n";
         std::cout << "1. Xem khoa hoc va thong tin dang ky\n";
+        std::cout << "2. Tao khoa hoc moi\n";
         std::cout << "0. Quay lai menu admin\n";
         std::cout << "9. Thoat chuong trinh\n";
 
         switch (readChoice()) {
             case 1:
                 printCourseEnrollmentList(baseDir);
+                pauseScreen();
+                break;
+            case 2:
+                createCourse(baseDir);
                 pauseScreen();
                 break;
             case 0:
@@ -201,9 +309,9 @@ void runPaymentMenu() {
 }
 }  // namespace
 
-std::vector<UserRecord> loadUserList(const std::string& filePath) {
+std::vector<UserAdminRecord> loadAdminUserList(const std::string& filePath) {
     std::ifstream fin(filePath);
-    std::vector<UserRecord> records;
+    std::vector<UserAdminRecord> records;
     std::string line;
 
     if (!fin.is_open()) {
@@ -216,7 +324,7 @@ std::vector<UserRecord> loadUserList(const std::string& filePath) {
             continue;
         }
 
-        UserRecord record;
+        UserAdminRecord record;
         record.fields = splitByPipe(line);
         records.push_back(record);
     }
@@ -224,7 +332,7 @@ std::vector<UserRecord> loadUserList(const std::string& filePath) {
     return records;
 }
 
-void printUserList(const std::string& title, const std::vector<UserRecord>& records) {
+void printUserList(const std::string& title, const std::vector<UserAdminRecord>& records) {
     std::cout << "\n=== " << title << " (" << records.size() << " ban ghi) ===\n";
 
     for (size_t i = 0; i < records.size(); ++i) {
@@ -240,9 +348,9 @@ void printUserList(const std::string& title, const std::vector<UserRecord>& reco
 }
 
 void runDanhSachNguoiDung(const std::string& baseDir) {
-    const std::vector<UserRecord> students = loadUserList(joinPath(baseDir, "student.csv"));
-    const std::vector<UserRecord> teachers = loadUserList(joinPath(baseDir, "teacher.csv"));
-    const std::vector<UserRecord> admins = loadUserList(joinPath(baseDir, "admin.csv"));
+    const std::vector<UserAdminRecord> students = loadAdminUserList(joinPath(baseDir, "student.csv"));
+    const std::vector<UserAdminRecord> teachers = loadAdminUserList(joinPath(baseDir, "teacher.csv"));
+    const std::vector<UserAdminRecord> admins = loadAdminUserList(joinPath(baseDir, "admin.csv"));
 
     int choice = -1;
     while (true) {
@@ -298,7 +406,7 @@ void runStudentMenu(const std::string& baseDir) {
 
         switch (readChoice()) {
             case 1:
-                printUserList("Danh sach sinh vien", loadUserList(joinPath(baseDir, "student.csv")));
+                printUserList("Danh sach sinh vien", loadAdminUserList(joinPath(baseDir, "student.csv")));
                 pauseScreen();
                 break;
             case 0:
@@ -321,7 +429,7 @@ void runTeacherMenu(const std::string& baseDir) {
 
         switch (readChoice()) {
             case 1:
-                printUserList("Danh sach giao vien", loadUserList(joinPath(baseDir, "teacher.csv")));
+                printUserList("Danh sach giao vien", loadAdminUserList(joinPath(baseDir, "teacher.csv")));
                 pauseScreen();
                 break;
             case 0:
