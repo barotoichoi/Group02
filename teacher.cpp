@@ -66,12 +66,20 @@ void saveCsv(const string& filePath, const vector<UserTeacherRecord>& records) {
     }
 }
 
+void ensureTeacherDateOfBirthField(UserTeacherRecord& record) {
+    if (record.fields.size() == 8 && record.fields.back() == "teacher") {
+        record.fields.insert(record.fields.begin() + 4, "");
+    }
+}
+
 void updatePersonalInfo(const string& baseDir, const string& teacherId) {
     string path = joinPath(baseDir, "teacher.csv");
     vector<UserTeacherRecord> teachers = loadCsv(path);
 
     for (auto& t : teachers) {
         if (!t.fields.empty() && t.fields[0] == teacherId) {
+            ensureTeacherDateOfBirthField(t);
+
             cout << "\n--- CAP NHAT THONG TIN ---\n";
             string in;
             cout << "Ho ten moi: ";
@@ -82,9 +90,13 @@ void updatePersonalInfo(const string& baseDir, const string& teacherId) {
             getline(cin, in);
             if (!trimString(in).empty()) t.fields[2] = trimString(in);
 
-            cout << "SDT moi: ";
+            cout << "Ngay sinh moi: ";
             getline(cin, in);
             if (!trimString(in).empty()) t.fields[4] = trimString(in);
+
+            cout << "SDT moi: ";
+            getline(cin, in);
+            if (!trimString(in).empty()) t.fields[5] = trimString(in);
 
             saveCsv(path, teachers);
             cout << "=> Thanh cong!\n";

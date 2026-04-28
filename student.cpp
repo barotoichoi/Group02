@@ -39,6 +39,22 @@ string getField(const vector<string>& fields, size_t index) {
     return fields[index];
 }
 
+bool hasDateOfBirth(const vector<string>& fields) {
+    return fields.size() >= 10 && fields.back() == "student";
+}
+
+size_t studentInfoIndex(size_t newIndex, const vector<string>& fields) {
+    if (hasDateOfBirth(fields)) {
+        return newIndex;
+    }
+
+    if (newIndex >= 4) {
+        return newIndex - 1;
+    }
+
+    return newIndex;
+}
+
 int readChoice() {
     int choice;
     cout << "Nhap lua chon: ";
@@ -62,10 +78,11 @@ void printStudentProfile(const string& baseDir, const string& studentId) {
             cout << "ID: " << getField(student.fields, 0) << '\n';
             cout << "Ten: " << getField(student.fields, 1) << '\n';
             cout << "Email: " << getField(student.fields, 2) << '\n';
-            cout << "So dien thoai: " << getField(student.fields, 4) << '\n';
-            cout << "Dia chi: " << getField(student.fields, 5) << '\n';
-            cout << "Nganh: " << getField(student.fields, 6) << '\n';
-            cout << "Lop: " << getField(student.fields, 7) << '\n';
+            cout << "Ngay sinh: " << getField(student.fields, studentInfoIndex(4, student.fields)) << '\n';
+            cout << "So dien thoai: " << getField(student.fields, studentInfoIndex(5, student.fields)) << '\n';
+            cout << "Dia chi: " << getField(student.fields, studentInfoIndex(6, student.fields)) << '\n';
+            cout << "Nganh: " << getField(student.fields, studentInfoIndex(7, student.fields)) << '\n';
+            cout << "Lop: " << getField(student.fields, studentInfoIndex(8, student.fields)) << '\n';
             return;
         }
     }
@@ -131,6 +148,69 @@ void printEnrollmentList(const string& baseDir, const string& studentId) {
         cout << "Sinh vien chua dang ky khoa hoc nao.\n";
     }
 }
+
+bool saveStudentList(const string& filePath, const vector<UserStudentRecord>& students) {
+    ofstream file(filePath);
+    if (!file.is_open()) {
+        cout << "Khong ghi duoc file " << filePath << "!\n";
+        return false;
+    }
+
+    for (const UserStudentRecord& student : students) {
+        for (size_t i = 0; i < student.fields.size(); ++i) {
+            if (i > 0) {
+                file << " | ";
+            }
+            file << student.fields[i];
+        }
+        file << '\n';
+    }
+
+    return true;
+}
+
+void changeStudentPassword(const string& baseDir, const string& studentId) {
+    const string filePath = joinPath(baseDir, "student.csv");
+    vector<UserStudentRecord> students = loadUserList(filePath);
+
+    for (UserStudentRecord& student : students) {
+        if (getField(student.fields, 0) == studentId) {
+            string oldPassword;
+            string newPassword;
+            string confirmPassword;
+
+            cout << "Mat khau hien tai: ";
+            getline(cin, oldPassword);
+            if (getField(student.fields, 3) != oldPassword) {
+                cout << "Mat khau hien tai khong dung.\n";
+                return;
+            }
+
+            cout << "Mat khau moi: ";
+            getline(cin, newPassword);
+            newPassword = trim(newPassword);
+            if (newPassword.empty()) {
+                cout << "Mat khau moi khong duoc de trong.\n";
+                return;
+            }
+
+            cout << "Nhap lai mat khau moi: ";
+            getline(cin, confirmPassword);
+            if (newPassword != trim(confirmPassword)) {
+                cout << "Mat khau xac nhan khong khop.\n";
+                return;
+            }
+
+            student.fields[3] = newPassword;
+            if (saveStudentList(filePath, students)) {
+                cout << "Doi mat khau thanh cong.\n";
+            }
+            return;
+        }
+    }
+
+    cout << "Khong tim thay thong tin sinh vien.\n";
+}
 }
 
 
@@ -168,6 +248,7 @@ void runStudentMenu(const string& baseDir, const string& studentId) {
         cout << "1. Xem thong tin ca nhan\n";
         cout << "2. Xem danh sach khoa hoc\n";
         cout << "3. Xem khoa hoc da dang ky\n";
+        cout << "4. Doi mat khau\n";
         cout << "0. Dang xuat\n";
 
         switch (readChoice()) {
@@ -179,6 +260,9 @@ void runStudentMenu(const string& baseDir, const string& studentId) {
                 break;
             case 3:
                 printEnrollmentList(baseDir, studentId);
+                break;
+            case 4:
+                changeStudentPassword(baseDir, studentId);
                 break;
             case 0:
                 cout << "Dang xuat...\n";

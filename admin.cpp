@@ -347,6 +347,135 @@ void printUserList(const std::string& title, const std::vector<UserAdminRecord>&
     }
 }
 
+bool saveAdminUserList(const std::string& filePath, const std::vector<UserAdminRecord>& records) {
+    std::ofstream fout(filePath);
+    if (!fout.is_open()) {
+        std::cerr << "Khong ghi duoc file: " << filePath << '\n';
+        return false;
+    }
+
+    for (const UserAdminRecord& record : records) {
+        for (size_t i = 0; i < record.fields.size(); ++i) {
+            if (i > 0) {
+                fout << " | ";
+            }
+            fout << record.fields[i];
+        }
+        fout << '\n';
+    }
+
+    return true;
+}
+
+void addUserRecord(const std::string& filePath,
+                   const std::string& role,
+                   const std::vector<std::string>& fieldLabels) {
+    std::vector<UserAdminRecord> records = loadAdminUserList(filePath);
+    UserAdminRecord newRecord;
+
+    std::cout << "\n===== THEM " << role << " =====\n";
+
+    std::string id;
+    while (true) {
+        id = readRequiredText(fieldLabels[0] + ": ");
+        if (!recordIdExists(records, id)) {
+            break;
+        }
+        std::cout << "ID da ton tai. Vui long nhap ID khac.\n";
+    }
+    newRecord.fields.push_back(id);
+
+    for (size_t i = 1; i < fieldLabels.size(); ++i) {
+        newRecord.fields.push_back(readRequiredText(fieldLabels[i] + ": "));
+    }
+    newRecord.fields.push_back(role);
+
+    records.push_back(newRecord);
+    if (saveAdminUserList(filePath, records)) {
+        std::cout << "Them " << role << " thanh cong.\n";
+    }
+}
+
+void ensureDateOfBirthField(UserAdminRecord& record, const std::string& role) {
+    const size_t legacySize = (role == "student") ? 9 : 8;
+
+    if (record.fields.size() == legacySize && record.fields.back() == role) {
+        record.fields.insert(record.fields.begin() + 4, "");
+    }
+}
+
+void deleteUserRecord(const std::string& filePath, const std::string& role) {
+    std::vector<UserAdminRecord> records = loadAdminUserList(filePath);
+
+    std::cout << "\n===== XOA " << role << " =====\n";
+    const std::string id = readRequiredText("Nhap ID can xoa: ");
+
+    for (size_t i = 0; i < records.size(); ++i) {
+        if (getField(records[i], 0) == id) {
+            std::cout << "Tim thay: " << getField(records[i], 1) << '\n';
+            const std::string confirm = readRequiredText("Nhap y de xac nhan xoa: ");
+
+            if (confirm == "y" || confirm == "Y") {
+                records.erase(records.begin() + i);
+                if (saveAdminUserList(filePath, records)) {
+                    std::cout << "Xoa " << role << " thanh cong.\n";
+                }
+            } else {
+                std::cout << "Da huy thao tac xoa.\n";
+            }
+            return;
+        }
+    }
+
+    std::cout << "Khong tim thay ID: " << id << '\n';
+}
+
+void editUserRecord(const std::string& filePath,
+                    const std::string& role,
+                    const std::vector<std::string>& fieldLabels) {
+    std::vector<UserAdminRecord> records = loadAdminUserList(filePath);
+
+    std::cout << "\n===== SUA " << role << " =====\n";
+    const std::string id = readRequiredText("Nhap ID can sua: ");
+
+    for (UserAdminRecord& record : records) {
+        if (getField(record, 0) != id) {
+            continue;
+        }
+
+        ensureDateOfBirthField(record, role);
+
+        while (true) {
+            std::cout << "\nDang sua: " << getField(record, 1) << " (" << id << ")\n";
+            for (size_t i = 1; i < fieldLabels.size(); ++i) {
+                std::cout << i << ". " << fieldLabels[i]
+                          << " hien tai: " << getField(record, i) << '\n';
+            }
+            std::cout << "0. Luu va quay lai\n";
+
+            const int choice = readChoice();
+            if (choice == 0) {
+                if (saveAdminUserList(filePath, records)) {
+                    std::cout << "Cap nhat " << role << " thanh cong.\n";
+                }
+                return;
+            }
+
+            if (choice < 1 || static_cast<size_t>(choice) >= fieldLabels.size()) {
+                std::cout << "Lua chon khong hop le.\n";
+                continue;
+            }
+
+            while (record.fields.size() <= static_cast<size_t>(choice)) {
+                record.fields.push_back("");
+            }
+            record.fields[choice] = readRequiredText("Gia tri moi: ");
+        }
+    }
+
+    std::cout << "Khong tim thay ID: " << id << '\n';
+}
+
 void runDanhSachNguoiDung(const std::string& baseDir) {
     const std::vector<UserAdminRecord> students = loadAdminUserList(joinPath(baseDir, "student.csv"));
     const std::vector<UserAdminRecord> teachers = loadAdminUserList(joinPath(baseDir, "teacher.csv"));
@@ -398,15 +527,43 @@ void runDanhSachNguoiDung(const std::string& baseDir) {
 }
 
 void runStudentMenu(const std::string& baseDir) {
+    const std::string studentPath = joinPath(baseDir, "student.csv");
+    const std::vector<std::string> studentFields = {
+        "ID",
+        "Ho ten",
+        "Email",
+        "Mat khau",
+        "Ngay sinh",
+        "So dien thoai",
+        "Dia chi",
+        "Nganh",
+        "Lop"
+    };
+
     while (true) {
         std::cout << "\n===== QUAN LY SINH VIEN =====\n";
         std::cout << "1. Xem danh sach sinh vien\n";
+        std::cout << "2. Them sinh vien\n";
+        std::cout << "3. Sua thong tin sinh vien\n";
+        std::cout << "4. Xoa sinh vien\n";
         std::cout << "0. Quay lai\n";
         std::cout << "9. Thoat chuong trinh\n";
 
         switch (readChoice()) {
             case 1:
-                printUserList("Danh sach sinh vien", loadAdminUserList(joinPath(baseDir, "student.csv")));
+                printUserList("Danh sach sinh vien", loadAdminUserList(studentPath));
+                pauseScreen();
+                break;
+            case 2:
+                addUserRecord(studentPath, "student", studentFields);
+                pauseScreen();
+                break;
+            case 3:
+                editUserRecord(studentPath, "student", studentFields);
+                pauseScreen();
+                break;
+            case 4:
+                deleteUserRecord(studentPath, "student");
                 pauseScreen();
                 break;
             case 0:
@@ -421,15 +578,42 @@ void runStudentMenu(const std::string& baseDir) {
 }
 
 void runTeacherMenu(const std::string& baseDir) {
+    const std::string teacherPath = joinPath(baseDir, "teacher.csv");
+    const std::vector<std::string> teacherFields = {
+        "ID",
+        "Ho ten",
+        "Email",
+        "Mat khau",
+        "Ngay sinh",
+        "So dien thoai",
+        "Dia chi",
+        "Bo mon"
+    };
+
     while (true) {
         std::cout << "\n===== QUAN LY GIAO VIEN =====\n";
         std::cout << "1. Xem danh sach giao vien\n";
+        std::cout << "2. Them giao vien\n";
+        std::cout << "3. Sua thong tin giao vien\n";
+        std::cout << "4. Xoa giao vien\n";
         std::cout << "0. Quay lai\n";
         std::cout << "9. Thoat chuong trinh\n";
 
         switch (readChoice()) {
             case 1:
-                printUserList("Danh sach giao vien", loadAdminUserList(joinPath(baseDir, "teacher.csv")));
+                printUserList("Danh sach giao vien", loadAdminUserList(teacherPath));
+                pauseScreen();
+                break;
+            case 2:
+                addUserRecord(teacherPath, "teacher", teacherFields);
+                pauseScreen();
+                break;
+            case 3:
+                editUserRecord(teacherPath, "teacher", teacherFields);
+                pauseScreen();
+                break;
+            case 4:
+                deleteUserRecord(teacherPath, "teacher");
                 pauseScreen();
                 break;
             case 0:
