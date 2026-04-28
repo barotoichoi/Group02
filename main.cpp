@@ -1,6 +1,7 @@
 #include "admin.h"
+#include "student.h"
+#include "teacher.h"
 
-#include <cctype>
 #include <cstdlib>
 #include <iostream>
 #include <limits>
@@ -11,7 +12,8 @@ using namespace std;
 
 namespace {
 struct LoginUser {
-    UserRecord record;
+    string id;
+    string name;
     string role;
 };
 
@@ -20,7 +22,7 @@ void clearInput() {
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
 }
 
-int realChoice() {
+int readChoice() {
     int choice;
     cout << "Nhap lua chon: ";
 
@@ -33,62 +35,21 @@ int realChoice() {
     return choice;
 }
 
-string getEmailLevel(const string& email) {
-    const size_t atPos = email.find('@');
-    if (atPos < 2) {
-        return "";
-    }
-
-    const string level = email.substr(atPos - 2, 2);
-    if (!isdigit(static_cast<unsigned char>(level[0])) ||
-        !isdigit(static_cast<unsigned char>(level[1]))) {
-        return "";
-    }
-
-    return level;
+bool matchFields(const vector<string>& fields, const string& email, const string& password) {
+    return fields.size() >= 4 && fields[2] == email && fields[3] == password;
 }
 
-string roleFromEmail(const string& email) {
-    const string level = getEmailLevel(email);
+bool findStudent(const string& baseDir,
+                 const string& email,
+                 const string& password,
+                 LoginUser& loginUser) {
+    const vector<UserStudentRecord> students = loadUserList(baseDir + "/student.csv");
 
-    if (level == "01") {
-        return "admin";
-    }
-    if (level == "02") {
-        return "teacher";
-    }
-    if (level == "03") {
-        return "student";
-    }
-
-    return "";
-}
-
-string getRecordRole(const UserRecord& record) {
-    if (record.fields.empty()) {
-        return "";
-    }
-
-    return record.fields.back();
-}
-
-bool matchLogin(const UserRecord& record, const string& email, const string& password) {
-    return record.fields.size() >= 4 &&
-           record.fields[2] == email &&
-           record.fields[3] == password;
-}
-
-bool findUserInList(const vector<UserRecord>& users,
-                    const string& email,
-                    const string& password,
-                    LoginUser& loginUser) {
-    for (const UserRecord& user : users) {
-        if (matchLogin(user, email, password)) {
-            loginUser.record = user;
-            loginUser.role = roleFromEmail(email);
-            if (loginUser.role.empty()) {
-                loginUser.role = getRecordRole(user);
-            }
+    for (const UserStudentRecord& student : students) {
+        if (matchFields(student.fields, email, password)) {
+            loginUser.id = student.fields[0];
+            loginUser.name = student.fields[1];
+            loginUser.role = "student";
             return true;
         }
     }
@@ -96,13 +57,50 @@ bool findUserInList(const vector<UserRecord>& users,
     return false;
 }
 
-bool login(const string& baseDir, LoginUser& loginUser) {
+bool findAdmin(const string& baseDir,
+               const string& email,
+               const string& password,
+               LoginUser& loginUser) {
+    const vector<UserAdminRecord> admins = loadAdminUserList(joinPath(baseDir, "admin.csv"));
+
+    for (const UserAdminRecord& admin : admins) {
+        if (matchFields(admin.fields, email, password)) {
+            loginUser.id = admin.fields[0];
+            loginUser.name = admin.fields[1];
+            loginUser.role = "admin";
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool findTeacher(const string& baseDir,
+                 const string& email,
+                 const string& password,
+                 LoginUser& loginUser) {
+    const vector<UserTeacherRecord> teachers = loadCsv(joinPath(baseDir, "teacher.csv"));
+
+    for (const UserTeacherRecord& teacher : teachers) {
+        if (matchFields(teacher.fields, email, password)) {
+            loginUser.id = teacher.fields[0];
+            loginUser.name = teacher.fields[1];
+            loginUser.role = "teacher";
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool loginSystem(const string& baseDir, LoginUser& loginUser) {
     string email;
     string password;
 
     cout << "\n========== DANG NHAP HE THONG ==========\n";
     cout << "Email (nhap 0 de thoat): ";
     getline(cin, email);
+
     if (email == "0") {
         cout << "Da thoat chuong trinh.\n";
         exit(0);
@@ -111,25 +109,24 @@ bool login(const string& baseDir, LoginUser& loginUser) {
     cout << "Mat khau: ";
     getline(cin, password);
 
-    return findUserInList(loadUserList(baseDir + "/admin.csv"), email, password, loginUser) ||
-           findUserInList(loadUserList(baseDir + "/teacher.csv"), email, password, loginUser) ||
-           findUserInList(loadUserList(baseDir + "/student.csv"), email, password, loginUser);
+    return findAdmin(baseDir, email, password, loginUser) ||
+           findTeacher(baseDir, email, password, loginUser) ||
+           findStudent(baseDir, email, password, loginUser);
 }
 
 void openMenuByRole(const string& baseDir, const LoginUser& loginUser) {
-    cout << "\nDang nhap thanh cong. Quyen truy cap: " << loginUser.role << "\n";
+    cout << "\nDang nhap thanh cong: " << loginUser.name << "\n";
+    cout << "Quyen truy cap: " << loginUser.role << "\n";
 
     if (loginUser.role == "admin") {
         runAdminMenu(baseDir);
     } else if (loginUser.role == "teacher") {
-        runTeacherMenu(baseDir);
+        runTeacherMenu(baseDir, loginUser.id);
     } else if (loginUser.role == "student") {
-        runStudentMenu(baseDir);
-    } else {
-        cout << "Khong xac dinh duoc quyen truy cap cua tai khoan nay.\n";
+        runStudentMenu(baseDir, loginUser.id);
     }
 }
-}  
+}
 
 int main() {
     const string baseDir = ".";
@@ -137,7 +134,7 @@ int main() {
     while (true) {
         LoginUser loginUser;
 
-        if (login(baseDir, loginUser)) {
+        if (loginSystem(baseDir, loginUser)) {
             openMenuByRole(baseDir, loginUser);
         } else {
             cout << "\nEmail hoac mat khau khong dung.\n";
@@ -145,10 +142,9 @@ int main() {
 
         cout << "\n1. Dang nhap lai\n";
         cout << "0. Thoat chuong trinh\n";
-        cout << "9. Thoat chuong trinh\n";
 
-        const int choice = realChoice();
-        if (choice == 0 || choice == 9) {
+        const int choice = readChoice();
+        if (choice == 0) {
             cout << "Da thoat chuong trinh.\n";
             return 0;
         }
