@@ -53,6 +53,11 @@ vector<UserTeacherRecord> loadCsv(const string& filePath) {
     return records;
 }
 
+string getField(const vector<string>& fields, size_t index) {
+    if (index >= fields.size()) return "";
+    return fields[index];
+}
+
 void saveCsv(const string& filePath, const vector<UserTeacherRecord>& records) {
     ofstream fout(filePath);
     if (!fout.is_open()) return;
@@ -66,10 +71,92 @@ void saveCsv(const string& filePath, const vector<UserTeacherRecord>& records) {
     }
 }
 
+struct TeacherNotification {
+    size_t rowIndex;
+    string courseId;
+    string courseName;
+    string content;
+};
+
+vector<TeacherNotification> loadTeacherNotifications(const string& baseDir,
+                                                     const string& teacherId,
+                                                     vector<UserTeacherRecord>& allNotifications) {
+    allNotifications = loadCsv(joinPath(baseDir, "notification_teacher.csv"));
+    vector<TeacherNotification> notifications;
+
+    for (size_t i = 0; i < allNotifications.size(); ++i) {
+        const vector<string>& fields = allNotifications[i].fields;
+        if (getField(fields, 0) == teacherId) {
+            notifications.push_back({
+                i,
+                getField(fields, 1),
+                getField(fields, 2),
+                getField(fields, 3)
+            });
+        }
+    }
+
+    return notifications;
+}
+
+void removeTeacherNotification(const string& baseDir, size_t rowIndex) {
+    const string filePath = joinPath(baseDir, "notification_teacher.csv");
+    vector<UserTeacherRecord> notifications = loadCsv(filePath);
+
+    if (rowIndex >= notifications.size()) {
+        return;
+    }
+
+    notifications.erase(notifications.begin() + rowIndex);
+    saveCsv(filePath, notifications);
+}
+
 void ensureTeacherDateOfBirthField(UserTeacherRecord& record) {
     if (record.fields.size() == 8 && record.fields.back() == "teacher") {
         record.fields.insert(record.fields.begin() + 4, "");
     }
+}
+
+void viewTeacherNotifications(const string& baseDir, const string& teacherId) {
+    vector<UserTeacherRecord> allNotifications;
+    const vector<TeacherNotification> notifications =
+        loadTeacherNotifications(baseDir, teacherId, allNotifications);
+
+    cout << "\n===== THONG BAO GIAO VIEN =====\n";
+
+    if (notifications.empty()) {
+        cout << "Hien khong co thong bao moi.\n";
+        return;
+    }
+
+    for (size_t i = 0; i < notifications.size(); ++i) {
+        cout << (i + 1) << ". Ban duoc phan bo vao mon \""
+             << notifications[i].courseName
+             << "\" (thong bao tu Truong)\n";
+    }
+    cout << "0. Quay lai\n";
+    cout << "Chon thong bao de xem: ";
+
+    int choice;
+    if (!(cin >> choice)) {
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cout << "Lua chon khong hop le.\n";
+        return;
+    }
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+
+    if (choice <= 0 || static_cast<size_t>(choice) > notifications.size()) {
+        return;
+    }
+
+    const TeacherNotification notification = notifications[choice - 1];
+    cout << "\n" << notification.content << ": "
+         << notification.courseName << " (" << notification.courseId << ")\n";
+    cout << "Chuyen sang lich day...\n";
+
+    removeTeacherNotification(baseDir, notification.rowIndex);
+    viewTeachingSchedule(baseDir, teacherId);
 }
 
 void updatePersonalInfo(const string& baseDir, const string& teacherId) {
@@ -262,6 +349,7 @@ void runTeacherMenu(const string& baseDir, const string& teacherId) {
         cout << "4. Nhap diem\n";
         cout << "5. Xem khoa hoc\n";
         cout << "6. Doi mat khau\n";
+        cout << "7. Thong bao\n";
         cout << "0. Dang xuat\n";
         cout << "Chon: ";
 
@@ -281,6 +369,7 @@ void runTeacherMenu(const string& baseDir, const string& teacherId) {
             case 4: inputGrades(baseDir, teacherId); break;
             case 5: viewCourseList(baseDir, teacherId); break;
             case 6: changePassword(baseDir, teacherId); break;
+            case 7: viewTeacherNotifications(baseDir, teacherId); break;
             default: cout << "Lua chon sai!\n"; break;
         }
     }

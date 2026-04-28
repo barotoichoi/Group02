@@ -172,6 +172,45 @@ bool appendCourse(const std::string& filePath, const std::vector<std::string>& f
     return true;
 }
 
+void addTeacherCourseNotification(const std::string& baseDir,
+                                  const std::string& teacherId,
+                                  const std::string& courseId,
+                                  const std::string& courseName) {
+    const std::string filePath = joinPath(baseDir, "notification_teacher.csv");
+    std::ofstream fout(filePath, std::ios::app);
+
+    if (!fout.is_open()) {
+        std::cerr << "Khong ghi duoc file: " << filePath << '\n';
+        return;
+    }
+
+    fout << teacherId << " | "
+         << courseId << " | "
+         << courseName << " | "
+         << "Ban duoc phan bo vao mon hoc moi"
+         << '\n';
+}
+
+bool saveRecordList(const std::string& filePath, const std::vector<UserAdminRecord>& records) {
+    std::ofstream fout(filePath);
+    if (!fout.is_open()) {
+        std::cerr << "Khong ghi duoc file: " << filePath << '\n';
+        return false;
+    }
+
+    for (const UserAdminRecord& record : records) {
+        for (size_t i = 0; i < record.fields.size(); ++i) {
+            if (i > 0) {
+                fout << " | ";
+            }
+            fout << record.fields[i];
+        }
+        fout << '\n';
+    }
+
+    return true;
+}
+
 void printCourseEnrollmentList(const std::string& baseDir) {
     const std::vector<UserAdminRecord> courses = loadAdminUserList(joinPath(baseDir, "course.csv"));
     const std::vector<UserAdminRecord> enrollments = loadAdminUserList(joinPath(baseDir, "enrollment.csv"));
@@ -207,6 +246,19 @@ void printCourseEnrollmentList(const std::string& baseDir) {
         std::cout << "Ngay ket thuc: " << endDate << '\n';
         std::cout << "Trang thai: " << (isClosed ? "Da dong" : "Dang mo") << '\n';
     }
+}
+
+void printCourseDetailForEdit(const UserAdminRecord& course) {
+    std::cout << "\nDang sua khoa hoc: " << getField(course, 1)
+              << " (" << getField(course, 0) << ")\n";
+    std::cout << "1. Ten khoa hoc: " << getField(course, 1) << '\n';
+    std::cout << "2. So tin chi: " << getField(course, 2) << '\n';
+    std::cout << "3. Ma giao vien: " << getField(course, 3) << '\n';
+    std::cout << "4. So luong sinh vien toi da: " << getField(course, 4) << '\n';
+    std::cout << "5. Tien hoc moi tin chi: " << getField(course, 5) << '\n';
+    std::cout << "6. Ngay bat dau: " << getField(course, 6) << '\n';
+    std::cout << "7. Ngay ket thuc: " << getField(course, 7) << '\n';
+    std::cout << "0. Luu va quay lai\n";
 }
 
 void createCourse(const std::string& baseDir) {
@@ -253,8 +305,89 @@ void createCourse(const std::string& baseDir) {
             startDate,
             endDate
         })) {
+        addTeacherCourseNotification(baseDir, teacherId, courseId, courseName);
         std::cout << "Da tao khoa hoc thanh cong.\n";
     }
+}
+
+void editCourse(const std::string& baseDir) {
+    const std::string coursePath = joinPath(baseDir, "course.csv");
+    const std::string teacherPath = joinPath(baseDir, "teacher.csv");
+    std::vector<UserAdminRecord> courses = loadAdminUserList(coursePath);
+    const std::vector<UserAdminRecord> teachers = loadAdminUserList(teacherPath);
+
+    std::cout << "\n===== SUA KHOA HOC =====\n";
+    const std::string courseId = readRequiredText("Nhap ma khoa hoc can sua: ");
+
+    for (UserAdminRecord& course : courses) {
+        if (getField(course, 0) != courseId) {
+            continue;
+        }
+
+        while (course.fields.size() < 8) {
+            course.fields.push_back("");
+        }
+
+        const std::string oldTeacherId = getField(course, 3);
+
+        while (true) {
+            printCourseDetailForEdit(course);
+            const int choice = readChoice();
+
+            if (choice == 0) {
+                if (saveRecordList(coursePath, courses)) {
+                    if (getField(course, 3) != oldTeacherId) {
+                        addTeacherCourseNotification(
+                            baseDir,
+                            getField(course, 3),
+                            getField(course, 0),
+                            getField(course, 1)
+                        );
+                    }
+                    std::cout << "Cap nhat khoa hoc thanh cong.\n";
+                }
+                return;
+            }
+
+            switch (choice) {
+                case 1:
+                    course.fields[1] = readRequiredText("Ten khoa hoc moi: ");
+                    break;
+                case 2:
+                    course.fields[2] = std::to_string(readPositiveNumber("So tin chi moi: "));
+                    break;
+                case 3: {
+                    std::string newTeacherId;
+                    while (true) {
+                        newTeacherId = readRequiredText("Ma giao vien moi: ");
+                        if (recordIdExists(teachers, newTeacherId)) {
+                            break;
+                        }
+                        std::cout << "Khong tim thay giao vien voi ma nay.\n";
+                    }
+                    course.fields[3] = newTeacherId;
+                    break;
+                }
+                case 4:
+                    course.fields[4] = std::to_string(readPositiveNumber("So luong sinh vien toi da moi: "));
+                    break;
+                case 5:
+                    course.fields[5] = std::to_string(readPositiveNumber("Tien hoc moi tin chi moi: "));
+                    break;
+                case 6:
+                    course.fields[6] = readRequiredText("Ngay bat dau moi (dd/mm/yyyy): ");
+                    break;
+                case 7:
+                    course.fields[7] = readRequiredText("Ngay ket thuc moi (dd/mm/yyyy): ");
+                    break;
+                default:
+                    std::cout << "Lua chon khong hop le.\n";
+                    break;
+            }
+        }
+    }
+
+    std::cout << "Khong tim thay khoa hoc voi ma: " << courseId << '\n';
 }
 
 void runCourseMenu(const std::string& baseDir) {
@@ -262,6 +395,7 @@ void runCourseMenu(const std::string& baseDir) {
         std::cout << "\n===== QUAN LY KHOA HOC =====\n";
         std::cout << "1. Xem khoa hoc va thong tin dang ky\n";
         std::cout << "2. Tao khoa hoc moi\n";
+        std::cout << "3. Sua khoa hoc\n";
         std::cout << "0. Quay lai menu admin\n";
         std::cout << "9. Thoat chuong trinh\n";
 
@@ -272,6 +406,10 @@ void runCourseMenu(const std::string& baseDir) {
                 break;
             case 2:
                 createCourse(baseDir);
+                pauseScreen();
+                break;
+            case 3:
+                editCourse(baseDir);
                 pauseScreen();
                 break;
             case 0:
