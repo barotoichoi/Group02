@@ -9,6 +9,9 @@
 using namespace std;
 
 namespace {
+vector<vector<string>> loadPipeRows(const string& filePath);
+vector<string> findCourseById(const vector<vector<string>>& courses, const string& courseId);
+
 vector<string> split(const string& line) {
     vector<string> result;
     string token;
@@ -146,7 +149,9 @@ void printEnrollmentList(const string& baseDir, const string& studentId) {
             cout << "Ma dang ky: " << getField(fields, 0)
                  << " | Ma khoa hoc: " << getField(fields, 2)
                  << " | Ngay dang ky: " << getField(fields, 3)
-                 << " | Hoc phi: " << getField(fields, 4)
+                 << " | Trang thai: " << getField(fields, 4)
+                 << " | Hoc phi: " << getField(fields, 7)
+                 << " | Thanh toan: " << getField(fields, 8)
                  << " | Diem: " << getField(fields, 5)
                  << '\n';
             found = true;
@@ -156,6 +161,46 @@ void printEnrollmentList(const string& baseDir, const string& studentId) {
     if (!found) {
         cout << "Sinh vien chua dang ky khoa hoc nao.\n";
     }
+}
+
+void printTuitionList(const string& baseDir, const string& studentId) {
+    const vector<vector<string>> courses = loadPipeRows(joinPath(baseDir, "course.csv"));
+    const vector<vector<string>> enrollments = loadPipeRows(joinPath(baseDir, "enrollment.csv"));
+
+    cout << "\n===== HOC PHI CUA SINH VIEN =====\n";
+
+    bool found = false;
+    long long totalTuition = 0;
+
+    for (const vector<string>& enrollment : enrollments) {
+        if (getField(enrollment, 1) != studentId) {
+            continue;
+        }
+
+        const string courseId = getField(enrollment, 2);
+        const vector<string> course = findCourseById(courses, courseId);
+        const string courseName = course.empty() ? courseId : getField(course, 1);
+        const string credits = course.empty() ? "" : getField(course, 2);
+        const string totalFeeText = getField(enrollment, 7);
+        const string paymentStatus = getField(enrollment, 8);
+
+        totalTuition += toIntSafe(totalFeeText);
+        found = true;
+
+        cout << "Ma khoa hoc: " << courseId
+             << " | Ten mon: " << courseName
+             << " | Tin chi: " << credits
+             << " | Hoc phi: " << totalFeeText
+             << " | Thanh toan: " << paymentStatus
+             << '\n';
+    }
+
+    if (!found) {
+        cout << "Sinh vien chua co hoc phi nao.\n";
+        return;
+    }
+
+    cout << "Tong hoc phi: " << totalTuition << '\n';
 }
 
 vector<vector<string>> loadPipeRows(const string& filePath) {
@@ -213,6 +258,16 @@ string findCourseName(const vector<vector<string>>& courses, const string& cours
     }
 
     return courseId;
+}
+
+vector<string> findCourseById(const vector<vector<string>>& courses, const string& courseId) {
+    for (const vector<string>& course : courses) {
+        if (getField(course, 0) == courseId) {
+            return course;
+        }
+    }
+
+    return {};
 }
 
 string todayDate() {
@@ -512,8 +567,9 @@ void runStudentMenu(const string& baseDir, const string& studentId) {
         cout << "1. Xem thong tin ca nhan\n";
         cout << "2. Xem danh sach khoa hoc\n";
         cout << "3. Xem khoa hoc da dang ky\n";
-        cout << "4. Doi mat khau\n";
-        cout << "5. Thong bao\n";
+        cout << "4. Xem hoc phi\n";
+        cout << "5. Doi mat khau\n";
+        cout << "6. Thong bao\n";
         cout << "0. Dang xuat\n";
 
         switch (readChoice()) {
@@ -527,9 +583,12 @@ void runStudentMenu(const string& baseDir, const string& studentId) {
                 printEnrollmentList(baseDir, studentId);
                 break;
             case 4:
-                changeStudentPassword(baseDir, studentId);
+                printTuitionList(baseDir, studentId);
                 break;
             case 5:
+                changeStudentPassword(baseDir, studentId);
+                break;
+            case 6:
                 showNotifications(baseDir, studentId);
                 break;
             case 0:
