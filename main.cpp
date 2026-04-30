@@ -123,7 +123,8 @@ void openMenuByRole(const string& baseDir, const LoginUser& loginUser) {
     } else if (loginUser.role == "teacher") {
         runTeacherMenu(baseDir, loginUser.id);
     } else if (loginUser.role == "student") {
-        runStudentMenu(baseDir, loginUser.id);
+        // Use course-based student menu (matches requested options)
+        studentCourseMenu(loginUser.id);
     }
 }
 }

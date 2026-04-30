@@ -542,3 +542,35 @@ void runStudentMenu(const string& baseDir, const string& studentId) {
     }
 }
 
+void runStudentLogin(const string& baseDir) {
+    const string filePath = joinPath(baseDir, "student.csv");
+    vector<UserStudentRecord> users = loadUserList(filePath);
+
+    if (users.empty()) {
+        cout << "Khong tim thay ban ghi sinh vien hoac khong mo duoc file: " << filePath << "\n";
+        return;
+    }
+
+    string email, password;
+    cout << "===== DANG NHAP SINH VIEN =====\n";
+    cout << "Email: ";
+    getline(cin, email);
+    cout << "Mat khau: ";
+    getline(cin, password);
+
+    for (const UserStudentRecord& u : users) {
+        if (u.fields.size() >= 9 &&
+            getField(u.fields, 2) == trim(email) &&
+            getField(u.fields, 3) == trim(password) &&
+            getField(u.fields, 8) == "student") {
+
+            cout << "\nDang nhap thanh cong!\n";
+            // call course menu implemented in course.cpp
+            studentCourseMenu(getField(u.fields, 0));
+            return;
+        }
+    }
+
+    cout << "\nSai email hoac mat khau!\n";
+}
+
