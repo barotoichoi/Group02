@@ -1,9 +1,9 @@
-EN001 | 0312345678 | C001 | 25-04-2026 | Registered | 10    | Result | Tuition Fee | Payment Status
-EN002 | 0312345678 | C002 | 25-04-2026 | Pending    | 0     | Result | Tuition Fee | Payment Status
-EN003 | 0314526744 | C001 | 28-04-2026 | Registered |  |  | 9000000 | Unpaid
-EN004 | 0312345678 | C009 | 01-05-2026 | Registered | N/A | N/A | 2000000 | Unpaid
-EN005 | 0312345678 | C019 | 01-05-2026 | Registered | N/A | N/A | 3000000 | Unpaid
-EN006 | 0387654321 | C006 | 01-05-2026 | Registered | N/A | N/A | 3000000 | Unpaid
+EN001 | 0312345678 | C001 | 25-04-2026 | Registered | 10    | Result    | Tuition Fee | Payment Status
+EN002 | 0312345678 | C002 | 25-04-2026 | Pending    | 0     | Result    | Tuition Fee | Payment Status
+EN003 | 0314526744 | C001 | 28-04-2026 | Registered |       |           | 9000000 | Unpaid
+EN004 | 0312345678 | C009 | 01-05-2026 | Registered | N/A   | N/A       | 2000000 | Unpaid
+EN005 | 0312345678 | C019 | 01-05-2026 | Registered | N/A   | N/A       | 3000000 | Unpaid
+EN006 | 0387654321 | C006 | 01-05-2026 | Registered | N/A   | N/A | 3000000 | Unpaid
 EN007 | 0387654321 | C004 | 01-05-2026 | Registered | N/A | N/A | 1000000 | Unpaid
 EN008 | 0387654321 | C020 | 01-05-2026 | Registered | N/A | N/A | 3000000 | Unpaid
 EN009 | 0387654321 | C019 | 01-05-2026 | Registered | N/A | N/A | 3000000 | Unpaid
