@@ -8,6 +8,8 @@
 #include <cstdlib>
 
 namespace {
+int toIntSafe(const std::string& value);
+
 std::string trim(const std::string& value) {
     const size_t first = value.find_first_not_of(" \t\r\n");
     if (first == std::string::npos) {
@@ -89,6 +91,38 @@ std::string findTeacherName(const std::vector<UserAdminRecord>& teachers, const 
     return "Khong tim thay giao vien";
 }
 
+std::string findStudentName(const std::vector<UserAdminRecord>& students, const std::string& studentId) {
+    for (const UserAdminRecord& student : students) {
+        if (getField(student, 0) == studentId) {
+            return getField(student, 1);
+        }
+    }
+
+    return "Khong tim thay sinh vien";
+}
+
+std::string findCourseName(const std::vector<UserAdminRecord>& courses, const std::string& courseId) {
+    for (const UserAdminRecord& course : courses) {
+        if (getField(course, 0) == courseId) {
+            return getField(course, 1);
+        }
+    }
+
+    return "Khong tim thay khoa hoc";
+}
+
+int calculateCourseTuition(const std::vector<UserAdminRecord>& courses, const std::string& courseId) {
+    for (const UserAdminRecord& course : courses) {
+        if (getField(course, 0) == courseId) {
+            const int credits = toIntSafe(getField(course, 2));
+            const int feePerCredit = toIntSafe(getField(course, 5));
+            return credits * feePerCredit;
+        }
+    }
+
+    return 0;
+}
+
 int countEnrollmentsByCourse(const std::vector<UserAdminRecord>& enrollments, const std::string& courseId) {
     int count = 0;
 
@@ -153,6 +187,18 @@ int toIntSafe(const std::string& value) {
     } catch (...) {
         return 0;
     }
+}
+
+std::string fitColumn(const std::string& value, size_t width) {
+    if (value.length() <= width) {
+        return value;
+    }
+
+    if (width <= 3) {
+        return value.substr(0, width);
+    }
+
+    return value.substr(0, width - 3) + "...";
 }
 
 bool appendCourse(const std::string& filePath, const std::vector<std::string>& fields) {
@@ -223,6 +269,30 @@ void printCourseEnrollmentList(const std::string& baseDir) {
         return;
     }
 
+    const int wId = 8;
+    const int wName = 28;
+    const int wCredits = 8;
+    const int wTeacher = 28;
+    const int wStudents = 12;
+    const int wFee = 14;
+    const int wStart = 12;
+    const int wEnd = 12;
+    const int wStatus = 10;
+    const int totalWidth = wId + wName + wCredits + wTeacher + wStudents + wFee + wStart + wEnd + wStatus;
+
+    std::cout << std::left
+              << std::setw(wId) << "Ma KH"
+              << std::setw(wName) << "Ten khoa hoc"
+              << std::setw(wCredits) << "Tin chi"
+              << std::setw(wTeacher) << "Giao vien"
+              << std::setw(wStudents) << "Si so"
+              << std::setw(wFee) << "Hoc phi"
+              << std::setw(wStart) << "Bat dau"
+              << std::setw(wEnd) << "Ket thuc"
+              << std::setw(wStatus) << "Trang thai"
+              << '\n';
+    std::cout << std::string(totalWidth, '-') << '\n';
+
     for (const UserAdminRecord& course : courses) {
         const std::string courseId = getField(course, 0);
         const std::string courseName = getField(course, 1);
@@ -235,16 +305,20 @@ void printCourseEnrollmentList(const std::string& baseDir) {
         const std::string teacherName = findTeacherName(teachers, teacherId);
         const int registeredCount = countEnrollmentsByCourse(enrollments, courseId);
         const bool isClosed = maxStudents > 0 && registeredCount >= maxStudents;
+        const std::string teacherDisplay = teacherName + " (" + teacherId + ")";
+        const std::string studentDisplay = std::to_string(registeredCount) + "/" + std::to_string(maxStudents);
 
-        std::cout << "\nMa khoa hoc: " << courseId << '\n';
-        std::cout << "Ten khoa hoc: " << courseName << '\n';
-        std::cout << "So tin chi: " << credits << '\n';
-        std::cout << "Giao vien: " << teacherName << " (" << teacherId << ")\n";
-        std::cout << "So sinh vien: " << registeredCount << "/" << maxStudents << '\n';
-        std::cout << "Tien hoc moi tin chi: " << feePerCredit << '\n';
-        std::cout << "Ngay bat dau: " << startDate << '\n';
-        std::cout << "Ngay ket thuc: " << endDate << '\n';
-        std::cout << "Trang thai: " << (isClosed ? "Da dong" : "Dang mo") << '\n';
+        std::cout << std::left
+                  << std::setw(wId) << fitColumn(courseId, wId - 1)
+                  << std::setw(wName) << fitColumn(courseName, wName - 1)
+                  << std::setw(wCredits) << fitColumn(credits, wCredits - 1)
+                  << std::setw(wTeacher) << fitColumn(teacherDisplay, wTeacher - 1)
+                  << std::setw(wStudents) << fitColumn(studentDisplay, wStudents - 1)
+                  << std::setw(wFee) << fitColumn(feePerCredit, wFee - 1)
+                  << std::setw(wStart) << fitColumn(startDate, wStart - 1)
+                  << std::setw(wEnd) << fitColumn(endDate, wEnd - 1)
+                  << std::setw(wStatus) << (isClosed ? "Da dong" : "Dang mo")
+                  << '\n';
     }
 }
 
@@ -423,16 +497,136 @@ void runCourseMenu(const std::string& baseDir) {
     }
 }
 
-void runPaymentMenu() {
+void printTuitionList(const std::string& baseDir) {
+    const std::vector<UserAdminRecord> enrollments = loadAdminUserList(joinPath(baseDir, "enrollment.csv"));
+    const std::vector<UserAdminRecord> students = loadAdminUserList(joinPath(baseDir, "student.csv"));
+    const std::vector<UserAdminRecord> courses = loadAdminUserList(joinPath(baseDir, "course.csv"));
+
+    std::cout << "\n===== DANH SACH HOC PHI =====\n";
+
+    if (enrollments.empty()) {
+        std::cout << "Chua co du lieu dang ky hoc phi.\n";
+        return;
+    }
+
+    const int wEnroll = 10;
+    const int wStudentId = 12;
+    const int wStudent = 24;
+    const int wCourseId = 10;
+    const int wCourse = 28;
+    const int wDate = 14;
+    const int wTuition = 14;
+    const int wStatus = 14;
+    const int totalWidth = wEnroll + wStudentId + wStudent + wCourseId + wCourse + wDate + wTuition + wStatus;
+
+    std::cout << std::left
+              << std::setw(wEnroll) << "Ma DK"
+              << std::setw(wStudentId) << "Ma SV"
+              << std::setw(wStudent) << "Sinh vien"
+              << std::setw(wCourseId) << "Ma KH"
+              << std::setw(wCourse) << "Khoa hoc"
+              << std::setw(wDate) << "Ngay DK"
+              << std::setw(wTuition) << "Hoc phi"
+              << std::setw(wStatus) << "Trang thai"
+              << '\n';
+    std::cout << std::string(totalWidth, '-') << '\n';
+
+    long long totalTuition = 0;
+    long long paidTuition = 0;
+    long long unpaidTuition = 0;
+
+    for (const UserAdminRecord& enrollment : enrollments) {
+        const std::string enrollId = getField(enrollment, 0);
+        const std::string studentId = getField(enrollment, 1);
+        const std::string courseId = getField(enrollment, 2);
+        const std::string enrollDate = getField(enrollment, 3);
+        const std::string studentName = findStudentName(students, studentId);
+        const std::string courseName = findCourseName(courses, courseId);
+        const std::string paymentStatus = getField(enrollment, 8).empty() ? "Unpaid" : getField(enrollment, 8);
+
+        int tuition = toIntSafe(getField(enrollment, 7));
+        if (tuition <= 0) {
+            tuition = calculateCourseTuition(courses, courseId);
+        }
+
+        totalTuition += tuition;
+        if (paymentStatus == "Paid" || paymentStatus == "paid") {
+            paidTuition += tuition;
+        } else {
+            unpaidTuition += tuition;
+        }
+
+        std::cout << std::left
+                  << std::setw(wEnroll) << fitColumn(enrollId, wEnroll - 1)
+                  << std::setw(wStudentId) << fitColumn(studentId, wStudentId - 1)
+                  << std::setw(wStudent) << fitColumn(studentName, wStudent - 1)
+                  << std::setw(wCourseId) << fitColumn(courseId, wCourseId - 1)
+                  << std::setw(wCourse) << fitColumn(courseName, wCourse - 1)
+                  << std::setw(wDate) << fitColumn(enrollDate, wDate - 1)
+                  << std::setw(wTuition) << tuition
+                  << std::setw(wStatus) << fitColumn(paymentStatus, wStatus - 1)
+                  << '\n';
+    }
+
+    std::cout << std::string(totalWidth, '-') << '\n';
+    std::cout << "Tong hoc phi: " << totalTuition
+              << " | Da thanh toan: " << paidTuition
+              << " | Chua thanh toan: " << unpaidTuition << '\n';
+}
+
+void updatePaymentStatus(const std::string& baseDir) {
+    const std::string enrollmentPath = joinPath(baseDir, "enrollment.csv");
+    std::vector<UserAdminRecord> enrollments = loadAdminUserList(enrollmentPath);
+
+    std::cout << "\n===== CAP NHAT TRANG THAI HOC PHI =====\n";
+    const std::string enrollId = readRequiredText("Nhap ma dang ky: ");
+
+    for (UserAdminRecord& enrollment : enrollments) {
+        if (getField(enrollment, 0) != enrollId) {
+            continue;
+        }
+
+        while (enrollment.fields.size() < 9) {
+            enrollment.fields.push_back("");
+        }
+
+        std::cout << "1. Da thanh toan\n";
+        std::cout << "2. Chua thanh toan\n";
+        const int choice = readChoice();
+
+        if (choice == 1) {
+            enrollment.fields[8] = "Paid";
+        } else if (choice == 2) {
+            enrollment.fields[8] = "Unpaid";
+        } else {
+            std::cout << "Lua chon khong hop le.\n";
+            return;
+        }
+
+        if (saveRecordList(enrollmentPath, enrollments)) {
+            std::cout << "Cap nhat trang thai hoc phi thanh cong.\n";
+        }
+        return;
+    }
+
+    std::cout << "Khong tim thay ma dang ky: " << enrollId << '\n';
+}
+
+void runPaymentMenu(const std::string& baseDir) {
     while (true) {
-        std::cout << "\n===== QUAN LY KHOAN THANH TOAN =====\n";
-        std::cout << "1. Xem danh sach khoan thanh toan\n";
+        std::cout << "\n===== QUAN LY HOC PHI =====\n";
+        std::cout << "1. Xem danh sach hoc phi\n";
+        std::cout << "2. Cap nhat trang thai thanh toan\n";
         std::cout << "0. Quay lai menu admin\n";
         std::cout << "9. Thoat chuong trinh\n";
 
         switch (readChoice()) {
             case 1:
-                std::cout << "Chuc nang xem danh sach khoan thanh toan dang duoc phat trien.\n";
+                printTuitionList(baseDir);
+                pauseScreen();
+                break;
+            case 2:
+                updatePaymentStatus(baseDir);
                 pauseScreen();
                 break;
             case 0:
@@ -771,7 +965,7 @@ void runAdminMenu(const std::string& baseDir) {
         std::cout << "1. Quan ly sinh vien\n";
         std::cout << "2. Quan ly giao vien\n";
         std::cout << "3. Quan ly khoa hoc\n";
-        std::cout << "4. Quan ly khoan thanh toan\n";
+        std::cout << "4. Quan ly hoc phi\n";
         std::cout << "0. Dang xuat\n";
         std::cout << "9. Thoat chuong trinh\n";
 
@@ -786,7 +980,7 @@ void runAdminMenu(const std::string& baseDir) {
                 runCourseMenu(baseDir);
                 break;
             case 4:
-                runPaymentMenu();
+                runPaymentMenu(baseDir);
                 break;
             case 0:
                 return;

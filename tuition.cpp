@@ -46,12 +46,12 @@ int toIntSafe(const string& s) {
     }
 }
 
-int main() {
+void printTuitionReport() {
     const string filePath = "course.csv";
     ifstream fin(filePath);
     if (!fin.is_open()) {
         cerr << "Khong mo duoc file: " << filePath << '\n';
-        return 1;
+        return;
     }
 
     vector<Course> courses;
@@ -93,7 +93,7 @@ int main() {
 
     if (courses.empty()) {
         cout << "Khong co du lieu hoc phi trong file.\n";
-        return 0;
+        return;
     }
 
     cout << left
@@ -126,6 +126,4 @@ int main() {
 
     cout << string(94, '-') << '\n';
     cout << "Tong hoc phi tat ca mon: " << grandTotal << '\n';
-
-    return 0;
 }
