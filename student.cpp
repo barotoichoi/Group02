@@ -66,7 +66,7 @@ size_t studentInfoIndex(size_t newIndex, const vector<string>& fields) {
 
 int readChoice() {
     int choice;
-    cout << "Nhap lua chon: ";
+    cout << "Enter your choice: ";
 
     if (!(cin >> choice)) {
         cin.clear();
@@ -83,30 +83,30 @@ void printStudentProfile(const string& baseDir, const string& studentId) {
 
     for (const UserStudentRecord& student : students) {
         if (getField(student.fields, 0) == studentId) {
-            cout << "\n===== THONG TIN SINH VIEN =====\n";
+            cout << "\n===== STUDENT INFORMATION =====\n";
             cout << "ID: " << getField(student.fields, 0) << '\n';
-            cout << "Ten: " << getField(student.fields, 1) << '\n';
+            cout << "Name: " << getField(student.fields, 1) << '\n';
             cout << "Email: " << getField(student.fields, 2) << '\n';
-            cout << "Ngay sinh: " << getField(student.fields, studentInfoIndex(4, student.fields)) << '\n';
-            cout << "So dien thoai: " << getField(student.fields, studentInfoIndex(5, student.fields)) << '\n';
-            cout << "Dia chi: " << getField(student.fields, studentInfoIndex(6, student.fields)) << '\n';
-            cout << "Nganh: " << getField(student.fields, studentInfoIndex(7, student.fields)) << '\n';
-            cout << "Lop: " << getField(student.fields, studentInfoIndex(8, student.fields)) << '\n';
+            cout << "Date of birth: " << getField(student.fields, studentInfoIndex(4, student.fields)) << '\n';
+            cout << "Phone: " << getField(student.fields, studentInfoIndex(5, student.fields)) << '\n';
+            cout << "Address: " << getField(student.fields, studentInfoIndex(6, student.fields)) << '\n';
+            cout << "Major: " << getField(student.fields, studentInfoIndex(7, student.fields)) << '\n';
+            cout << "Class: " << getField(student.fields, studentInfoIndex(8, student.fields)) << '\n';
             return;
         }
     }
 
-    cout << "Khong tim thay thong tin sinh vien.\n";
+    cout << "Student information not found.\n";
 }
 
 void printCourseList(const string& baseDir) {
     ifstream file(joinPath(baseDir, "course.csv"));
     if (!file.is_open()) {
-        cout << "Khong mo duoc file course.csv!\n";
+        cout << "Cannot open file course.csv!\n";
         return;
     }
 
-    cout << "\n===== DANH SACH KHOA HOC =====\n";
+    cout << "\n===== COURSE LIST =====\n";
     string line;
     while (getline(file, line)) {
         if (trim(line).empty()) continue;
@@ -116,10 +116,10 @@ void printCourseList(const string& baseDir) {
             field = trim(field);
         }
 
-        cout << "Ma: " << getField(fields, 0)
-             << " | Ten: " << getField(fields, 1)
-             << " | Tin chi: " << getField(fields, 2)
-             << " | Hoc phi: " << getField(fields, 5)
+        cout << "ID: " << getField(fields, 0)
+             << " | Name: " << getField(fields, 1)
+             << " | Credits: " << getField(fields, 2)
+             << " | Tuition: " << getField(fields, 5)
              << '\n';
     }
 }
@@ -127,11 +127,11 @@ void printCourseList(const string& baseDir) {
 void printEnrollmentList(const string& baseDir, const string& studentId) {
     ifstream file(joinPath(baseDir, "enrollment.csv"));
     if (!file.is_open()) {
-        cout << "Khong mo duoc file enrollment.csv!\n";
+        cout << "Cannot open file enrollment.csv!\n";
         return;
     }
 
-    cout << "\n===== KHOA HOC DA DANG KY =====\n";
+    cout << "\n===== ENROLLED COURSES =====\n";
     bool found = false;
     string line;
     while (getline(file, line)) {
@@ -143,18 +143,18 @@ void printEnrollmentList(const string& baseDir, const string& studentId) {
         }
 
         if (getField(fields, 1) == studentId) {
-            cout << "Ma dang ky: " << getField(fields, 0)
-                 << " | Ma khoa hoc: " << getField(fields, 2)
-                 << " | Ngay dang ky: " << getField(fields, 3)
-                 << " | Hoc phi: " << getField(fields, 4)
-                 << " | Diem: " << getField(fields, 5)
+            cout << "Enrollment ID: " << getField(fields, 0)
+                 << " | Course ID: " << getField(fields, 2)
+                 << " | Enrollment date: " << getField(fields, 3)
+                 << " | Tuition: " << getField(fields, 4)
+                 << " | Grade: " << getField(fields, 5)
                  << '\n';
             found = true;
         }
     }
 
     if (!found) {
-        cout << "Sinh vien chua dang ky khoa hoc nao.\n";
+        cout << "The student has not enrolled in any courses.\n";
     }
 }
 
@@ -163,7 +163,7 @@ vector<vector<string>> loadPipeRows(const string& filePath) {
     ifstream file(filePath);
 
     if (!file.is_open()) {
-        cout << "Khong mo duoc file " << filePath << "!\n";
+        cout << "Cannot open file " << filePath << "!\n";
         return rows;
     }
 
@@ -215,6 +215,64 @@ string findCourseName(const vector<vector<string>>& courses, const string& cours
     return courseId;
 }
 
+vector<string> findCourseById(const vector<vector<string>>& courses, const string& courseId) {
+    for (const vector<string>& course : courses) {
+        if (getField(course, 0) == courseId) {
+            return course;
+        }
+    }
+
+    return {};
+}
+
+bool parseDate(const string& value, tm& outDate) {
+    if (value.size() != 10) return false;
+    if ((value[2] != '/' && value[2] != '-') || (value[5] != '/' && value[5] != '-')) return false;
+
+    try {
+        outDate = {};
+        outDate.tm_mday = stoi(value.substr(0, 2));
+        outDate.tm_mon = stoi(value.substr(3, 2)) - 1;
+        outDate.tm_year = stoi(value.substr(6, 4)) - 1900;
+        outDate.tm_hour = 12;
+        return outDate.tm_mday > 0 && outDate.tm_mon >= 0 && outDate.tm_mon < 12;
+    } catch (...) {
+        return false;
+    }
+}
+
+string addDaysToDate(const string& value, int days) {
+    tm date{};
+    if (!parseDate(value, date)) {
+        return "Unknown";
+    }
+
+    time_t timestamp = mktime(&date);
+    if (timestamp == static_cast<time_t>(-1)) {
+        return "Unknown";
+    }
+
+    timestamp += static_cast<time_t>(days) * 24 * 60 * 60;
+    tm result{};
+#ifdef _MSC_VER
+    localtime_s(&result, &timestamp);
+#else
+    result = *localtime(&timestamp);
+#endif
+
+    char buffer[16];
+    strftime(buffer, sizeof(buffer), "%d/%m/%Y", &result);
+    return string(buffer);
+}
+
+bool isUnpaidStatus(const string& status) {
+    const string normalized = trim(status);
+    return normalized.empty() ||
+           normalized == "Unpaid" ||
+           normalized == "unpaid" ||
+           normalized == "Unpaid";
+}
+
 string todayDate() {
     time_t now = time(nullptr);
     tm localTm{};
@@ -249,7 +307,7 @@ string nextEnrollmentId(const vector<vector<string>>& enrollments) {
 bool appendPipeRow(const string& filePath, const vector<string>& fields) {
     ofstream file(filePath, ios::app);
     if (!file.is_open()) {
-        cout << "Khong ghi duoc file " << filePath << "!\n";
+        cout << "Cannot write file " << filePath << "!\n";
         return false;
     }
 
@@ -264,15 +322,15 @@ bool appendPipeRow(const string& filePath, const vector<string>& fields) {
 void showCourseDetail(const vector<string>& course, int registeredCount) {
     const int maxStudents = toIntSafe(getField(course, 4));
 
-    cout << "\n===== CHI TIET MON HOC =====\n";
-    cout << "Ma mon: " << getField(course, 0) << '\n';
-    cout << "Ten mon: " << getField(course, 1) << '\n';
-    cout << "So tin chi: " << getField(course, 2) << '\n';
-    cout << "Ma giao vien: " << getField(course, 3) << '\n';
-    cout << "Con trong: " << (maxStudents - registeredCount) << "/" << maxStudents << '\n';
-    cout << "Tien hoc moi tin chi: " << getField(course, 5) << '\n';
-    cout << "Ngay bat dau: " << getField(course, 6) << '\n';
-    cout << "Ngay ket thuc: " << getField(course, 7) << '\n';
+    cout << "\n===== COURSE DETAILS =====\n";
+    cout << "Course ID: " << getField(course, 0) << '\n';
+    cout << "Course name: " << getField(course, 1) << '\n';
+    cout << "Credits: " << getField(course, 2) << '\n';
+    cout << "Teacher ID: " << getField(course, 3) << '\n';
+    cout << "Available seats: " << (maxStudents - registeredCount) << "/" << maxStudents << '\n';
+    cout << "Fee per credit: " << getField(course, 5) << '\n';
+    cout << "Start date: " << getField(course, 6) << '\n';
+    cout << "End date: " << getField(course, 7) << '\n';
 }
 
 void registerCourseFromNotification(const string& baseDir,
@@ -287,17 +345,17 @@ void registerCourseFromNotification(const string& baseDir,
     showCourseDetail(course, registeredCount);
 
     if (isStudentEnrolled(enrollments, studentId, courseId)) {
-        cout << "Ban da dang ky mon hoc nay.\n";
+        cout << "You have already enrolled in this course.\n";
         return;
     }
 
     if (maxStudents <= 0 || registeredCount >= maxStudents) {
-        cout << "Mon hoc da dong hoac khong con cho trong.\n";
+        cout << "The course is closed or has no available seats.\n";
         return;
     }
 
-    cout << "\n1. Dang ky mon hoc nay\n";
-    cout << "0. Quay lai\n";
+    cout << "\n1. Enroll in this course\n";
+    cout << "0. Back\n";
 
     if (readChoice() != 1) {
         return;
@@ -318,7 +376,7 @@ void registerCourseFromNotification(const string& baseDir,
             to_string(totalFee),
             "Unpaid"
         })) {
-        cout << "Dang ky mon hoc thanh cong.\n";
+        cout << "Course enrollment successful.\n";
     }
 }
 
@@ -326,24 +384,26 @@ void showGradeDetail(const string& baseDir, const string& studentId, const strin
     const vector<vector<string>> courses = loadPipeRows(joinPath(baseDir, "course.csv"));
     const vector<vector<string>> enrollments = loadPipeRows(joinPath(baseDir, "enrollment.csv"));
 
-    cout << "\n===== THONG TIN DIEM MON HOC =====\n";
+    cout << "\n===== COURSE GRADE INFORMATION =====\n";
     for (const vector<string>& enrollment : enrollments) {
         if (getField(enrollment, 1) == studentId && getField(enrollment, 2) == courseId) {
-            cout << "Mon hoc: " << findCourseName(courses, courseId) << " (" << courseId << ")\n";
-            cout << "Ngay dang ky: " << getField(enrollment, 3) << '\n';
-            cout << "Trang thai dang ky: " << getField(enrollment, 4) << '\n';
-            cout << "Diem: " << getField(enrollment, 5) << '\n';
+            cout << "Course: " << findCourseName(courses, courseId) << " (" << courseId << ")\n";
+            cout << "Enrollment date: " << getField(enrollment, 3) << '\n';
+            cout << "Enrollment status: " << getField(enrollment, 4) << '\n';
+            cout << "Grade: " << getField(enrollment, 5) << '\n';
             return;
         }
     }
 
-    cout << "Khong tim thay thong tin mon hoc.\n";
+    cout << "Course information not found.\n";
 }
 
 struct StudentNotification {
     int type;
     string courseId;
     string courseName;
+    string tuitionFee;
+    string paymentDeadline;
     vector<string> course;
 };
 
@@ -360,7 +420,7 @@ vector<StudentNotification> buildNotifications(const string& baseDir, const stri
         if (maxStudents > 0 &&
             registeredCount < maxStudents &&
             !isStudentEnrolled(enrollments, studentId, courseId)) {
-            notifications.push_back({1, courseId, getField(course, 1), course});
+            notifications.push_back({1, courseId, getField(course, 1), "", "", course});
         }
     }
 
@@ -372,7 +432,15 @@ vector<StudentNotification> buildNotifications(const string& baseDir, const stri
         const string grade = trim(getField(enrollment, 5));
         if (!grade.empty() && grade != "0") {
             const string courseId = getField(enrollment, 2);
-            notifications.push_back({2, courseId, findCourseName(courses, courseId), {}});
+            notifications.push_back({2, courseId, findCourseName(courses, courseId), "", "", {}});
+        }
+
+        if (isUnpaidStatus(getField(enrollment, 8))) {
+            const string courseId = getField(enrollment, 2);
+            const vector<string> course = findCourseById(courses, courseId);
+            const string deadline = course.empty() ? "Unknown" : addDaysToDate(getField(course, 7), -7);
+            const string tuitionFee = getField(enrollment, 7).empty() ? "0" : getField(enrollment, 7);
+            notifications.push_back({3, courseId, findCourseName(courses, courseId), tuitionFee, deadline, {}});
         }
     }
 
@@ -382,23 +450,27 @@ vector<StudentNotification> buildNotifications(const string& baseDir, const stri
 void showNotifications(const string& baseDir, const string& studentId) {
     const vector<StudentNotification> notifications = buildNotifications(baseDir, studentId);
 
-    cout << "\n===== THONG BAO =====\n";
+    cout << "\n===== NOTIFICATIONS =====\n";
     if (notifications.empty()) {
-        cout << "Hien chua co thong bao moi.\n";
+        cout << "There are no new notifications.\n";
         return;
     }
 
     for (size_t i = 0; i < notifications.size(); ++i) {
         cout << (i + 1) << ". ";
         if (notifications[i].type == 1) {
-            cout << "Ban co mon \"" << notifications[i].courseName
-                 << "\" chua dang ky hien dang mo (thong bao tu Truong)\n";
+            cout << "You have course \"" << notifications[i].courseName
+                 << "\" available for enrollment (school notification)\n";
+        } else if (notifications[i].type == 2) {
+            cout << "You have a grade notification for course \"" << notifications[i].courseName
+                 << "\" (notification from teacher)\n";
         } else {
-            cout << "Ban co thong bao diem tu mon \"" << notifications[i].courseName
-                 << "\" (Thong bao tu giao vien)\n";
+            cout << "You have not paid tuition for course \"" << notifications[i].courseName
+                 << "\". Tuition: " << notifications[i].tuitionFee
+                 << ". Payment deadline: " << notifications[i].paymentDeadline << '\n';
         }
     }
-    cout << "0. Quay lai\n";
+    cout << "0. Back\n";
 
     const int choice = readChoice();
     if (choice <= 0 || static_cast<size_t>(choice) > notifications.size()) {
@@ -408,15 +480,20 @@ void showNotifications(const string& baseDir, const string& studentId) {
     const StudentNotification& notification = notifications[choice - 1];
     if (notification.type == 1) {
         registerCourseFromNotification(baseDir, studentId, notification.course);
-    } else {
+    } else if (notification.type == 2) {
         showGradeDetail(baseDir, studentId, notification.courseId);
+    } else {
+        cout << "\n===== TUITION DETAILS =====\n";
+        cout << "Course: " << notification.courseName << " (" << notification.courseId << ")\n";
+        cout << "Tuition: " << notification.tuitionFee << '\n';
+        cout << "Payment deadline: " << notification.paymentDeadline << '\n';
     }
 }
 
 bool saveStudentList(const string& filePath, const vector<UserStudentRecord>& students) {
     ofstream file(filePath);
     if (!file.is_open()) {
-        cout << "Khong ghi duoc file " << filePath << "!\n";
+        cout << "Cannot write file " << filePath << "!\n";
         return false;
     }
 
@@ -443,37 +520,37 @@ void changeStudentPassword(const string& baseDir, const string& studentId) {
             string newPassword;
             string confirmPassword;
 
-            cout << "Mat khau hien tai: ";
+            cout << "Current password: ";
             getline(cin, oldPassword);
             if (getField(student.fields, 3) != oldPassword) {
-                cout << "Mat khau hien tai khong dung.\n";
+                cout << "Current password is incorrect.\n";
                 return;
             }
 
-            cout << "Mat khau moi: ";
+            cout << "New password: ";
             getline(cin, newPassword);
             newPassword = trim(newPassword);
             if (newPassword.empty()) {
-                cout << "Mat khau moi khong duoc de trong.\n";
+                cout << "New password cannot be empty.\n";
                 return;
             }
 
-            cout << "Nhap lai mat khau moi: ";
+            cout << "Confirm new password: ";
             getline(cin, confirmPassword);
             if (newPassword != trim(confirmPassword)) {
-                cout << "Mat khau xac nhan khong khop.\n";
+                cout << "Password confirmation does not match.\n";
                 return;
             }
 
             student.fields[3] = newPassword;
             if (saveStudentList(filePath, students)) {
-                cout << "Doi mat khau thanh cong.\n";
+                cout << "Password changed successfully.\n";
             }
             return;
         }
     }
 
-    cout << "Khong tim thay thong tin sinh vien.\n";
+    cout << "Student information not found.\n";
 }
 }
 
@@ -484,7 +561,7 @@ vector<UserStudentRecord> loadUserList(const string& filePath) {
     string line;
 
     if (!file.is_open()) {
-        cout << "Khong mo duoc file!\n";
+        cout << "Cannot open file!\n";
         return users;
     }
 
@@ -508,13 +585,13 @@ vector<UserStudentRecord> loadUserList(const string& filePath) {
 
 void runStudentMenu(const string& baseDir, const string& studentId) {
     while (true) {
-        cout << "\n========== MENU SINH VIEN ==========\n";
-        cout << "1. Xem thong tin ca nhan\n";
-        cout << "2. Xem danh sach khoa hoc\n";
-        cout << "3. Xem khoa hoc da dang ky\n";
-        cout << "4. Doi mat khau\n";
-        cout << "5. Thong bao\n";
-        cout << "0. Dang xuat\n";
+        cout << "\n========== STUDENT MENU ==========\n";
+        cout << "1. View personal information\n";
+        cout << "2. View course list\n";
+        cout << "3. View enrolled courses\n";
+        cout << "4. Change password\n";
+        cout << "5. Notifications\n";
+        cout << "0. Log out\n";
 
         switch (readChoice()) {
             case 1:
@@ -533,10 +610,10 @@ void runStudentMenu(const string& baseDir, const string& studentId) {
                 showNotifications(baseDir, studentId);
                 break;
             case 0:
-                cout << "Dang xuat...\n";
+                cout << "Log out...\n";
                 return;
             default:
-                cout << "Lua chon khong hop le.\n";
+                cout << "Invalid choice.\n";
                 break;
         }
     }
@@ -547,15 +624,15 @@ void runStudentLogin(const string& baseDir) {
     vector<UserStudentRecord> users = loadUserList(filePath);
 
     if (users.empty()) {
-        cout << "Khong tim thay ban ghi sinh vien hoac khong mo duoc file: " << filePath << "\n";
+        cout << "No student records found or cannot open file: " << filePath << "\n";
         return;
     }
 
     string email, password;
-    cout << "===== DANG NHAP SINH VIEN =====\n";
+    cout << "===== STUDENT LOGIN =====\n";
     cout << "Email: ";
     getline(cin, email);
-    cout << "Mat khau: ";
+    cout << "Password: ";
     getline(cin, password);
 
     for (const UserStudentRecord& u : users) {
@@ -564,13 +641,13 @@ void runStudentLogin(const string& baseDir) {
             getField(u.fields, 3) == trim(password) &&
             getField(u.fields, 8) == "student") {
 
-            cout << "\nDang nhap thanh cong!\n";
+            cout << "\nLogin successful!\n";
             // call course menu implemented in course.cpp
             studentCourseMenu(getField(u.fields, 0));
             return;
         }
     }
 
-    cout << "\nSai email hoac mat khau!\n";
+    cout << "\nIncorrect email or password!\n";
 }
 

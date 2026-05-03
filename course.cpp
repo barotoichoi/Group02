@@ -41,7 +41,7 @@ static vector<vector<string>> readCsvRows(const string& filePath) {
     ifstream fin(filePath);
 
     if (!fin.is_open()) {
-        cout << "Khong mo duoc file: " << filePath << "\n";
+        cout << "Cannot open file: " << filePath << "\n";
         return rows;
     }
 
@@ -66,7 +66,7 @@ static vector<vector<string>> readCsvRows(const string& filePath) {
 static bool writeCsvRows(const string& filePath, const vector<vector<string>>& rows) {
     ofstream fout(filePath);
     if (!fout.is_open()) {
-        cout << "Khong ghi duoc file: " << filePath << "\n";
+        cout << "Cannot write file: " << filePath << "\n";
         return false;
     }
 
@@ -80,9 +80,35 @@ static bool writeCsvRows(const string& filePath, const vector<vector<string>>& r
     return true;
 }
 
+static bool writePipeRows(const string& filePath, const vector<vector<string>>& rows) {
+    ofstream fout(filePath);
+    if (!fout.is_open()) {
+        cout << "Cannot write file: " << filePath << "\n";
+        return false;
+    }
+
+    for (size_t r = 0; r < rows.size(); ++r) {
+        for (size_t c = 0; c < rows[r].size(); ++c) {
+            if (c > 0) fout << " | ";
+            fout << rows[r][c];
+        }
+        fout << "\n";
+    }
+
+    return true;
+}
+
 static string getCell(const vector<string>& row, size_t index) {
     if (index >= row.size()) return "";
     return row[index];
+}
+
+static int toIntSafe(const string& value) {
+    try {
+        return stoi(trim(value));
+    } catch (...) {
+        return 0;
+    }
 }
 
 static string todayDDMMYYYY() {
@@ -102,9 +128,65 @@ static string todayDDMMYYYY() {
     return string(buffer);
 }
 
+static bool parseDate(const string& value, tm& outDate) {
+    if (value.size() != 10) return false;
+    if ((value[2] != '/' && value[2] != '-') || (value[5] != '/' && value[5] != '-')) return false;
+
+    try {
+        const int day = stoi(value.substr(0, 2));
+        const int month = stoi(value.substr(3, 2));
+        const int year = stoi(value.substr(6, 4));
+
+        outDate = {};
+        outDate.tm_mday = day;
+        outDate.tm_mon = month - 1;
+        outDate.tm_year = year - 1900;
+        outDate.tm_hour = 12;
+        return day > 0 && month > 0 && month <= 12 && year > 1900;
+    } catch (...) {
+        return false;
+    }
+}
+
+static string addDaysToDate(const string& value, int days) {
+    tm date{};
+    if (!parseDate(value, date)) {
+        return "Unknown";
+    }
+
+    time_t timestamp = mktime(&date);
+    if (timestamp == static_cast<time_t>(-1)) {
+        return "Unknown";
+    }
+
+    timestamp += static_cast<time_t>(days) * 24 * 60 * 60;
+    tm result{};
+#ifdef _WIN32
+#ifdef _MSC_VER
+    localtime_s(&result, &timestamp);
+#else
+    result = *localtime(&timestamp);
+#endif
+#else
+    localtime_r(&timestamp, &result);
+#endif
+
+    char buffer[16];
+    strftime(buffer, sizeof(buffer), "%d/%m/%Y", &result);
+    return string(buffer);
+}
+
+static bool isUnpaidStatus(const string& status) {
+    const string normalized = trim(status);
+    return normalized.empty() ||
+           normalized == "Unpaid" ||
+           normalized == "unpaid" ||
+           normalized == "Unpaid";
+}
+
 static int readChoice() {
     int choice;
-    cout << "Nhap lua chon (1-7): ";
+    cout << "Enter your choice: ";
 
     if (!(cin >> choice)) {
         cin.clear();
@@ -149,6 +231,18 @@ static bool enrollmentExists(const string& studentId, const string& courseId,
     return false;
 }
 
+static int countCourseEnrollments(const vector<vector<string>>& enrollments, const string& courseId) {
+    int count = 0;
+
+    for (size_t i = 0; i < enrollments.size(); ++i) {
+        if (getCell(enrollments[i], 2) == courseId) {
+            ++count;
+        }
+    }
+
+    return count;
+}
+
 static string nextEnrollmentId(const vector<vector<string>>& enrollments) {
     int maxNumber = 0;
 
@@ -176,6 +270,46 @@ static string nextEnrollmentId(const vector<vector<string>>& enrollments) {
     return ss.str();
 }
 
+static bool isGradeAvailable(const string& grade) {
+    const string normalized = trim(grade);
+    return !normalized.empty() &&
+           normalized != "N/A" &&
+           normalized != "n/a";
+}
+
+static void appendEnrollment(const string& studentId, const vector<string>& selectedCourse) {
+    vector<vector<string>> enrollments = readCsvRows(ENROLL_FILE);
+    const string courseId = getCell(selectedCourse, 0);
+
+    if (enrollmentExists(studentId, courseId, enrollments)) {
+        cout << "You have already enrolled in this course.\n";
+        return;
+    }
+
+    const string enrollmentId = nextEnrollmentId(enrollments);
+    const string enrollDate = todayDDMMYYYY();
+    const string tuitionFee = getCell(selectedCourse, 5);
+
+    ofstream fout(ENROLL_FILE, ios::app);
+    if (!fout.is_open()) {
+        cout << "Cannot open file: " << ENROLL_FILE << "\n";
+        return;
+    }
+
+    fout << enrollmentId << " | "
+         << studentId << " | "
+         << courseId << " | "
+         << enrollDate << " | "
+         << "Registered | "
+         << " | "
+         << " | "
+         << tuitionFee << " | "
+         << "Unpaid"
+         << "\n";
+
+    cout << "Course enrollment successful!\n";
+}
+
 static void viewProfile(const string& studentId) {
     vector<vector<string>> students = readCsvRows(STUDENT_FILE);
 
@@ -185,15 +319,16 @@ static void viewProfile(const string& studentId) {
             cout << "ID        : " << getCell(students[i], 0) << "\n";
             cout << "Full Name : " << getCell(students[i], 1) << "\n";
             cout << "Email     : " << getCell(students[i], 2) << "\n";
-            cout << "Phone     : " << getCell(students[i], 4) << "\n";
-            cout << "Address   : " << getCell(students[i], 5) << "\n";
-            cout << "Major     : " << getCell(students[i], 6) << "\n";
-            cout << "Class     : " << getCell(students[i], 7) << "\n";
+            cout << "Date of birth: " << getCell(students[i], 4) << "\n";
+            cout << "Phone     : " << getCell(students[i], 5) << "\n";
+            cout << "Address   : " << getCell(students[i], 6) << "\n";
+            cout << "Major     : " << getCell(students[i], 7) << "\n";
+            cout << "Class     : " << getCell(students[i], 8) << "\n";
             return;
         }
     }
 
-    cout << "Khong tim thay student_id: " << studentId << "\n";
+    cout << "student_id not found: " << studentId << "\n";
 }
 
 static void viewScore(const string& studentId) {
@@ -218,9 +353,6 @@ static void viewScore(const string& studentId) {
         string score = getCell(enrollments[i], 5);
         string result = getCell(enrollments[i], 6);
 
-        if (score.empty()) score = "N/A";
-        if (result.empty()) result = "N/A";
-
         cout << left << setw(w1) << courseId
              << setw(w2) << courseName
              << setw(w3) << score
@@ -229,88 +361,107 @@ static void viewScore(const string& studentId) {
     }
 
     if (!found) {
-        cout << "Khong co diem nao cho sinh vien nay.\n";
+        cout << "No grades found for this student.\n";
     }
 }
 
-static void viewCourses() {
+static bool isFinishedCourse(const vector<string>& enrollment) {
+    const string score = trim(getCell(enrollment, 5));
+    const string result = trim(getCell(enrollment, 6));
+
+    return isGradeAvailable(score) ||
+           (!result.empty() && result != "N/A" && result != "Result");
+}
+
+static void printRegisteredCourseTable(const vector<vector<string>>& enrollments,
+                                       const vector<vector<string>>& courses,
+                                       const string& studentId,
+                                       bool finished) {
+    const int w1 = 12, w2 = 28, w3 = 10, w4 = 14, w5 = 14, w6 = 10, w7 = 12, w8 = 14;
+    bool found = false;
+
+    cout << left << setw(w1) << "Course ID"
+         << setw(w2) << "Course Name"
+         << setw(w3) << "Credits"
+         << setw(w4) << "Start Date"
+         << setw(w5) << "End Date"
+         << setw(w6) << "Score"
+         << setw(w7) << "Result"
+         << setw(w8) << "Status" << "\n";
+    cout << string(w1 + w2 + w3 + w4 + w5 + w6 + w7 + w8, '-') << "\n";
+
+    for (size_t i = 0; i < enrollments.size(); ++i) {
+        if (getCell(enrollments[i], 1) != studentId) continue;
+        if (isFinishedCourse(enrollments[i]) != finished) continue;
+
+        vector<string> course;
+        const string courseId = getCell(enrollments[i], 2);
+        findCourseRow(courseId, courses, course);
+
+        string score = getCell(enrollments[i], 5);
+        string result = getCell(enrollments[i], 6);
+        cout << left << setw(w1) << courseId
+             << setw(w2) << findCourseName(courseId, courses)
+             << setw(w3) << getCell(course, 2)
+             << setw(w4) << getCell(course, 6)
+             << setw(w5) << getCell(course, 7)
+             << setw(w6) << score
+             << setw(w7) << result
+             << setw(w8) << (finished ? "Completed" : "In progress")
+             << "\n";
+        found = true;
+    }
+
+    if (!found) {
+        cout << (finished ? "No completed courses.\n" : "No in-progress courses.\n");
+    }
+}
+
+static void viewRegisteredCourses(const string& studentId) {
+    vector<vector<string>> enrollments = readCsvRows(ENROLL_FILE);
     vector<vector<string>> courses = readCourseFile();
 
-    cout << "\n===== VIEW COURSES =====\n";
-    if (courses.empty()) {
-        cout << "Khong co du lieu course.csv hoac file rong.\n";
+    cout << "\n===== REGISTERED COURSES =====\n";
+
+    bool hasEnrollment = false;
+    for (size_t i = 0; i < enrollments.size(); ++i) {
+        if (getCell(enrollments[i], 1) == studentId) {
+            hasEnrollment = true;
+            break;
+        }
+    }
+
+    if (!hasEnrollment) {
+        cout << "The student has not enrolled in any courses.\n";
         return;
     }
 
-    const int w1 = 12, w2 = 28, w3 = 8, w4 = 14, w5 = 14, w6 = 14, w7 = 14, w8 = 14;
-    cout << left << setw(w1) << "Course ID"
-         << setw(w2) << "Course Name"
-         << setw(w3) << "Credit"
-         << setw(w4) << "Teacher ID"
-         << setw(w5) << "Max Students"
-         << setw(w6) << "Tuition Fee"
-         << setw(w7) << "Start Date"
-         << setw(w8) << "End Date" << "\n";
-    cout << string(w1 + w2 + w3 + w4 + w5 + w6 + w7 + w8, '-') << "\n";
+    cout << "\n--- In-progress courses ---\n";
+    printRegisteredCourseTable(enrollments, courses, studentId, false);
 
-    for (size_t i = 0; i < courses.size(); ++i) {
-        cout << left << setw(w1) << getCell(courses[i], 0)
-             << setw(w2) << getCell(courses[i], 1)
-             << setw(w3) << getCell(courses[i], 2)
-             << setw(w4) << getCell(courses[i], 3)
-             << setw(w5) << getCell(courses[i], 4)
-             << setw(w6) << getCell(courses[i], 5)
-             << setw(w7) << getCell(courses[i], 6)
-             << setw(w8) << getCell(courses[i], 7) << "\n";
-    }
+    cout << "\n--- Completed courses ---\n";
+    printRegisteredCourseTable(enrollments, courses, studentId, true);
 }
 
 static void enrollCourse(const string& studentId) {
-    cout << "Nhap course_id can dang ky: ";
+    cout << "Enter course_id to enroll: ";
     string courseId;
     getline(cin, courseId);
     courseId = trim(courseId);
 
     if (courseId.empty()) {
-        cout << "course_id khong hop le.\n";
+        cout << "Invalid course_id.\n";
         return;
     }
 
     vector<vector<string>> courses = readCourseFile();
     vector<string> selectedCourse;
     if (!findCourseRow(courseId, courses, selectedCourse)) {
-        cout << "course_id khong ton tai trong course.csv.\n";
+        cout << "course_id does not exist in course.csv.\n";
         return;
     }
 
-    vector<vector<string>> enrollments = readCsvRows(ENROLL_FILE);
-    if (enrollmentExists(studentId, courseId, enrollments)) {
-        cout << "Ban da dang ky course nay roi.\n";
-        return;
-    }
-
-    string enrollmentId = nextEnrollmentId(enrollments);
-    string enrollDate = todayDDMMYYYY();
-    string tuitionFee = getCell(selectedCourse, 5);
-
-    ofstream fout(ENROLL_FILE, ios::app);
-    if (!fout.is_open()) {
-        cout << "Khong mo duoc file: " << ENROLL_FILE << "\n";
-        return;
-    }
-
-    fout << enrollmentId << " | "
-         << studentId << " | "
-         << courseId << " | "
-         << enrollDate << " | "
-         << "Registered | "
-         << "N/A | "
-         << "N/A | "
-         << tuitionFee << " | "
-         << "Unpaid"
-         << "\n";
-
-    cout << "Dang ky khoa hoc thanh cong!\n";
+    appendEnrollment(studentId, selectedCourse);
 }
 
 static void viewEnrollment(const string& studentId) {
@@ -348,24 +499,172 @@ static void viewEnrollment(const string& studentId) {
     }
 
     if (!found) {
-        cout << "Sinh vien chua co dang ky nao.\n";
+        cout << "The student has no enrollments.\n";
     }
+}
+
+static void viewCourseGradeDetail(const string& studentId, const string& selectedCourseId) {
+    vector<vector<string>> enrollments = readCsvRows(ENROLL_FILE);
+    vector<vector<string>> courses = readCourseFile();
+
+    cout << "\n===== COURSE GRADE DETAIL =====\n";
+
+    for (size_t i = 0; i < enrollments.size(); ++i) {
+        if (getCell(enrollments[i], 1) == studentId &&
+            getCell(enrollments[i], 2) == selectedCourseId) {
+            cout << "Course: " << findCourseName(selectedCourseId, courses)
+                 << " (" << selectedCourseId << ")\n";
+            cout << "Enrollment date: " << getCell(enrollments[i], 3) << '\n';
+            cout << "Enrollment status: " << getCell(enrollments[i], 4) << '\n';
+            cout << "Score: " << getCell(enrollments[i], 5) << '\n';
+            cout << "Result: " << getCell(enrollments[i], 6) << '\n';
+            return;
+        }
+    }
+
+    cout << "Course grade information not found.\n";
+}
+
+static void viewTuitionDetail(const string& studentId, const string& selectedCourseId) {
+    vector<vector<string>> enrollments = readCsvRows(ENROLL_FILE);
+    vector<vector<string>> courses = readCourseFile();
+
+    cout << "\n===== TUITION DETAIL =====\n";
+
+    for (size_t i = 0; i < enrollments.size(); ++i) {
+        if (getCell(enrollments[i], 1) == studentId &&
+            getCell(enrollments[i], 2) == selectedCourseId) {
+            vector<string> course;
+            string deadline = "Unknown";
+            if (findCourseRow(selectedCourseId, courses, course)) {
+                deadline = addDaysToDate(getCell(course, 7), -7);
+            }
+
+            cout << "Course: " << findCourseName(selectedCourseId, courses)
+                 << " (" << selectedCourseId << ")\n";
+            cout << "Tuition: " << getCell(enrollments[i], 7) << '\n';
+            cout << "Payment status: " << getCell(enrollments[i], 8) << '\n';
+            cout << "Payment deadline: " << deadline << '\n';
+            return;
+        }
+    }
+
+    cout << "Tuition information not found.\n";
+}
+
+static bool updatePaymentStatus(const string& studentId, const string& selectedCourseId, const string& status) {
+    vector<vector<string>> enrollments = readCsvRows(ENROLL_FILE);
+
+    for (size_t i = 0; i < enrollments.size(); ++i) {
+        if (getCell(enrollments[i], 1) == studentId &&
+            getCell(enrollments[i], 2) == selectedCourseId) {
+            while (enrollments[i].size() < 9) {
+                enrollments[i].push_back("");
+            }
+
+            enrollments[i][8] = status;
+            return writePipeRows(ENROLL_FILE, enrollments);
+        }
+    }
+
+    cout << "Tuition information not found.\n";
+    return false;
+}
+
+static void viewTuitionList(const string& studentId) {
+    vector<vector<string>> enrollments = readCsvRows(ENROLL_FILE);
+    vector<vector<string>> courses = readCourseFile();
+
+    cout << "\n===== TUITION =====\n";
+
+    const int w1 = 12, w2 = 28, w3 = 14, w4 = 16, w5 = 14;
+    cout << left << setw(w1) << "Course ID"
+         << setw(w2) << "Course Name"
+         << setw(w3) << "Tuition"
+         << setw(w4) << "Payment Status"
+         << setw(w5) << "Deadline" << "\n";
+    cout << string(w1 + w2 + w3 + w4 + w5, '-') << "\n";
+
+    bool found = false;
+    for (size_t i = 0; i < enrollments.size(); ++i) {
+        if (getCell(enrollments[i], 1) != studentId) continue;
+
+        const string courseId = getCell(enrollments[i], 2);
+        vector<string> course;
+        string deadline = "Unknown";
+        if (findCourseRow(courseId, courses, course)) {
+            deadline = addDaysToDate(getCell(course, 7), -7);
+        }
+
+        cout << left << setw(w1) << courseId
+             << setw(w2) << findCourseName(courseId, courses)
+             << setw(w3) << getCell(enrollments[i], 7)
+             << setw(w4) << getCell(enrollments[i], 8)
+             << setw(w5) << deadline << "\n";
+        found = true;
+    }
+
+    if (!found) {
+        cout << "The student has no tuition records.\n";
+    }
+}
+
+static void changePassword(const string& studentId) {
+    vector<vector<string>> students = readCsvRows(STUDENT_FILE);
+
+    for (size_t i = 0; i < students.size(); ++i) {
+        if (getCell(students[i], 0) != studentId) continue;
+
+        string currentPassword;
+        string newPassword;
+        string confirmPassword;
+
+        cout << "Current password: ";
+        getline(cin, currentPassword);
+        if (getCell(students[i], 3) != currentPassword) {
+            cout << "Current password is incorrect.\n";
+            return;
+        }
+
+        cout << "New password: ";
+        getline(cin, newPassword);
+        newPassword = trim(newPassword);
+        if (newPassword.empty()) {
+            cout << "New password cannot be empty.\n";
+            return;
+        }
+
+        cout << "Confirm new password: ";
+        getline(cin, confirmPassword);
+        if (newPassword != trim(confirmPassword)) {
+            cout << "Password confirmation does not match.\n";
+            return;
+        }
+
+        students[i][3] = newPassword;
+        if (writePipeRows(STUDENT_FILE, students)) {
+            cout << "Password changed successfully.\n";
+        }
+        return;
+    }
+
+    cout << "Student information not found.\n";
 }
 
 static void cancelEnrollment(const string& studentId) {
     vector<vector<string>> enrollments = readCsvRows(ENROLL_FILE);
     if (enrollments.empty()) {
-        cout << "Khong co du lieu enrollment de huy.\n";
+        cout << "No enrollment data to cancel.\n";
         return;
     }
 
-    cout << "Nhap course_id can huy: ";
+    cout << "Enter course_id to cancel: ";
     string courseId;
     getline(cin, courseId);
     courseId = trim(courseId);
 
     if (courseId.empty()) {
-        cout << "course_id khong hop le.\n";
+        cout << "Invalid course_id.\n";
         return;
     }
 
@@ -383,12 +682,168 @@ static void cancelEnrollment(const string& studentId) {
     }
 
     if (!removed) {
-        cout << "Khong tim thay dang ky phu hop de huy.\n";
+        cout << "No matching enrollment found to cancel.\n";
         return;
     }
 
     if (writeCsvRows(ENROLL_FILE, newRows)) {
-        cout << "Huy dang ky thanh cong!\n";
+        cout << "Enrollment cancelled successfully!\n";
+    }
+}
+
+static void registrationMenu(const string& studentId) {
+    while (true) {
+        cout << "\n===== COURSE REGISTRATION =====\n";
+        cout << "1. Enroll course\n";
+        cout << "2. View enrollment\n";
+        cout << "3. Cancel enrollment\n";
+        cout << "0. Back\n";
+
+        const int choice = readChoice();
+        switch (choice) {
+            case 1:
+                enrollCourse(studentId);
+                break;
+            case 2:
+                viewEnrollment(studentId);
+                break;
+            case 3:
+                cancelEnrollment(studentId);
+                break;
+            case 0:
+                return;
+            default:
+                cout << "Invalid choice.\n";
+                break;
+        }
+    }
+}
+
+struct StudentNotification {
+    int type;
+    string courseId;
+    string courseName;
+    string tuitionFee;
+    string paymentDeadline;
+    vector<string> course;
+};
+
+static void payTuitionFromNotification(const string& studentId, const StudentNotification& notification) {
+    cout << "\n===== TUITION PAYMENT =====\n";
+    cout << "Course: " << notification.courseName << " (" << notification.courseId << ")\n";
+    cout << "Tuition: " << notification.tuitionFee << '\n';
+    cout << "Payment deadline: " << notification.paymentDeadline << '\n';
+    cout << "1. Confirm payment\n";
+    cout << "2. Cancel payment\n";
+    cout << "0. Back\n";
+
+    const int choice = readChoice();
+    switch (choice) {
+        case 1:
+            if (updatePaymentStatus(studentId, notification.courseId, "Paid")) {
+                cout << "Payment completed successfully.\n";
+            }
+            break;
+        case 2:
+            cout << "Payment cancelled.\n";
+            break;
+        case 0:
+            return;
+        default:
+            cout << "Invalid choice.\n";
+            break;
+    }
+}
+
+static vector<StudentNotification> buildNotifications(const string& studentId) {
+    vector<vector<string>> courses = readCourseFile();
+    vector<vector<string>> enrollments = readCsvRows(ENROLL_FILE);
+    vector<StudentNotification> notifications;
+
+    for (size_t i = 0; i < courses.size(); ++i) {
+        const string courseId = getCell(courses[i], 0);
+        const int maxStudents = toIntSafe(getCell(courses[i], 4));
+        const int registeredCount = countCourseEnrollments(enrollments, courseId);
+
+        if (maxStudents > 0 &&
+            registeredCount < maxStudents &&
+            !enrollmentExists(studentId, courseId, enrollments)) {
+            notifications.push_back({1, courseId, getCell(courses[i], 1), "", "", courses[i]});
+        }
+    }
+
+    for (size_t i = 0; i < enrollments.size(); ++i) {
+        if (getCell(enrollments[i], 1) != studentId) continue;
+
+        const string courseId = getCell(enrollments[i], 2);
+        const string courseName = findCourseName(courseId, courses);
+
+        if (isGradeAvailable(getCell(enrollments[i], 5))) {
+            notifications.push_back({2, courseId, courseName, "", "", {}});
+        }
+
+        if (isUnpaidStatus(getCell(enrollments[i], 8))) {
+            vector<string> course;
+            string deadline = "Unknown";
+            if (findCourseRow(courseId, courses, course)) {
+                deadline = addDaysToDate(getCell(course, 7), -7);
+            }
+
+            const string tuitionFee = getCell(enrollments[i], 7).empty() ? "0" : getCell(enrollments[i], 7);
+            notifications.push_back({3, courseId, courseName, tuitionFee, deadline, {}});
+        }
+    }
+
+    return notifications;
+}
+
+static void showNotifications(const string& studentId) {
+    const vector<StudentNotification> notifications = buildNotifications(studentId);
+
+    cout << "\n===== NOTIFICATIONS =====\n";
+
+    if (notifications.empty()) {
+        cout << "There are no new notifications.\n";
+        return;
+    }
+
+    for (size_t i = 0; i < notifications.size(); ++i) {
+        cout << (i + 1) << ". ";
+        if (notifications[i].type == 1) {
+            cout << "New open course: \"" << notifications[i].courseName
+                 << "\" is available for enrollment.\n";
+        } else if (notifications[i].type == 2) {
+            cout << "Grade notification: \"" << notifications[i].courseName
+                 << "\" has a grade update.\n";
+        } else {
+            cout << "Unpaid tuition: \"" << notifications[i].courseName
+                 << "\". Tuition: " << notifications[i].tuitionFee
+                 << ". Payment deadline: " << notifications[i].paymentDeadline << ".\n";
+        }
+    }
+
+    cout << "0. Back\n";
+    const int choice = readChoice();
+
+    if (choice <= 0 || static_cast<size_t>(choice) > notifications.size()) {
+        return;
+    }
+
+    const StudentNotification& notification = notifications[choice - 1];
+
+    if (notification.type == 1) {
+        cout << "\n===== COURSE ENROLLMENT =====\n";
+        cout << "Course: " << notification.courseName << " (" << notification.courseId << ")\n";
+        cout << "1. Enroll in this course\n";
+        cout << "0. Back\n";
+
+        if (readChoice() == 1) {
+            appendEnrollment(studentId, notification.course);
+        }
+    } else if (notification.type == 2) {
+        viewCourseGradeDetail(studentId, notification.courseId);
+    } else {
+        payTuitionFromNotification(studentId, notification);
     }
 }
 
@@ -397,40 +852,40 @@ static void cancelEnrollment(const string& studentId) {
 void studentCourseMenu(const string& studentId) {
     while (true) {
         cout << "\n========== Course Menu ==========\n";
-        cout << "1. View profile - id\n";
-        cout << "2. View score\n";
-        cout << "3. View Courses\n";
-        cout << "4. Enroll Course\n";
-        cout << "5. View Enrollment\n";
-        cout << "6. Cancel Enrollment\n";
-        cout << "7. Logout\n";
+        cout << "1. View profile\n";
+        cout << "2. View courses\n";
+        cout << "3. Course registration\n";
+        cout << "4. Notifications\n";
+        cout << "5. View tuition\n";
+        cout << "6. Change password\n";
+        cout << "0. Logout\n";
         cout << "------------------------------------\n";
 
         int choice = readChoice();
         switch (choice) {
+            case 0:
+                cout << "Logging out...\n";
+                return;
             case 1:
                 viewProfile(studentId);
                 break;
             case 2:
-                viewScore(studentId);
+                viewRegisteredCourses(studentId);
                 break;
             case 3:
-                viewCourses();
+                registrationMenu(studentId);
                 break;
             case 4:
-                enrollCourse(studentId);
+                showNotifications(studentId);
                 break;
             case 5:
-                viewEnrollment(studentId);
+                viewTuitionList(studentId);
                 break;
             case 6:
-                cancelEnrollment(studentId);
+                changePassword(studentId);
                 break;
-            case 7:
-                cout << "Dang xuat...\n";
-                return;
             default:
-                cout << "Lua chon khong hop le. Vui long nhap 1-7.\n";
+                cout << "Invalid choice. Please choose 0-6.\n";
                 break;
         }
     }

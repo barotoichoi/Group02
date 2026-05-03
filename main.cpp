@@ -24,7 +24,7 @@ void clearInput() {
 
 int readChoice() {
     int choice;
-    cout << "Nhap lua chon: ";
+    cout << "Enter your choice: ";
 
     if (!(cin >> choice)) {
         clearInput();
@@ -97,16 +97,16 @@ bool loginSystem(const string& baseDir, LoginUser& loginUser) {
     string email;
     string password;
 
-    cout << "\n========== DANG NHAP HE THONG ==========\n";
-    cout << "Email (nhap 0 de thoat): ";
+    cout << "\n========== SYSTEM LOGIN ==========\n";
+    cout << "Email (enter 0 to exit): ";
     getline(cin, email);
 
     if (email == "0") {
-        cout << "Da thoat chuong trinh.\n";
+        cout << "Program exited.\n";
         exit(0);
     }
 
-    cout << "Mat khau: ";
+    cout << "Password: ";
     getline(cin, password);
 
     return findAdmin(baseDir, email, password, loginUser) ||
@@ -115,8 +115,8 @@ bool loginSystem(const string& baseDir, LoginUser& loginUser) {
 }
 
 void openMenuByRole(const string& baseDir, const LoginUser& loginUser) {
-    cout << "\nDang nhap thanh cong: " << loginUser.name << "\n";
-    cout << "Quyen truy cap: " << loginUser.role << "\n";
+    cout << "\nLogin successful: " << loginUser.name << "\n";
+    cout << "Access role: " << loginUser.role << "\n";
 
     if (loginUser.role == "admin") {
         runAdminMenu(baseDir);
@@ -138,15 +138,15 @@ int main() {
         if (loginSystem(baseDir, loginUser)) {
             openMenuByRole(baseDir, loginUser);
         } else {
-            cout << "\nEmail hoac mat khau khong dung.\n";
+            cout << "\nIncorrect email or password.\n";
         }
 
-        cout << "\n1. Dang nhap lai\n";
-        cout << "0. Thoat chuong trinh\n";
+        cout << "\n1. Login again\n";
+        cout << "0. Exit program\n";
 
         const int choice = readChoice();
         if (choice == 0) {
-            cout << "Da thoat chuong trinh.\n";
+            cout << "Program exited.\n";
             return 0;
         }
     }
