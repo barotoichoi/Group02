@@ -50,7 +50,7 @@ void printTuitionReport() {
     const string filePath = "course.csv";
     ifstream fin(filePath);
     if (!fin.is_open()) {
-        cerr << "Khong mo duoc file: " << filePath << '\n';
+        cerr << "Cannot open file: " << filePath << '\n';
         return;
     }
 
@@ -73,9 +73,9 @@ void printTuitionReport() {
         c.phone = fields[3];
         c.feePerCredit = toIntSafe(fields[4]);
 
-        // Ho tro 2 dinh dang:
-        // 7 cot: ... | HocPhi/TC | BatDau | KetThuc
-        // 8 cot: ... | HocPhi/TC | TongHocPhi | BatDau | KetThuc
+        // Supports two formats:
+        // 7 columns: ... | Fee/Credit | StartDate | EndDate
+        // 8 columns: ... | Fee/Credit | TotalTuition | StartDate | EndDate
         if (fields.size() >= 8) {
             c.totalFee = toIntSafe(fields[5]);
             c.startDate = fields[6];
@@ -92,18 +92,18 @@ void printTuitionReport() {
     }
 
     if (courses.empty()) {
-        cout << "Khong co du lieu hoc phi trong file.\n";
+        cout << "No tuition data in file.\n";
         return;
     }
 
     cout << left
-         << setw(8) << "MaMon"
-         << setw(22) << "TenMon"
-         << setw(10) << "TinChi"
-         << setw(14) << "HocPhi/TC"
-         << setw(12) << "TongPhi"
-         << setw(14) << "BatDau"
-         << setw(14) << "KetThuc"
+         << setw(8) << "CourseID"
+         << setw(22) << "CourseName"
+         << setw(10) << "Credits"
+         << setw(14) << "Fee/Credit"
+         << setw(12) << "TotalFee"
+         << setw(14) << "StartDate"
+         << setw(14) << "EndDate"
          << '\n';
 
     cout << string(94, '-') << '\n';
@@ -125,5 +125,5 @@ void printTuitionReport() {
     }
 
     cout << string(94, '-') << '\n';
-    cout << "Tong hoc phi tat ca mon: " << grandTotal << '\n';
+    cout << "Total tuition for all courses: " << grandTotal << '\n';
 }

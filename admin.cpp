@@ -52,7 +52,7 @@ void clearInput() {
 
 int readChoice() {
     int choice;
-    std::cout << "Nhap lua chon: ";
+    std::cout << "Enter your choice: ";
 
     if (!(std::cin >> choice)) {
         clearInput();
@@ -64,12 +64,12 @@ int readChoice() {
 }
 
 void pauseScreen() {
-    std::cout << "\nNhan Enter de tiep tuc...";
+    std::cout << "\nPress Enter to continue...";
     std::cin.get();
 }
 
 void exitProgram() {
-    std::cout << "Da thoat chuong trinh.\n";
+    std::cout << "Program exited.\n";
     std::exit(0);
 }
 
@@ -88,7 +88,7 @@ std::string findTeacherName(const std::vector<UserAdminRecord>& teachers, const 
         }
     }
 
-    return "Khong tim thay giao vien";
+    return "Teacher not found";
 }
 
 std::string findStudentName(const std::vector<UserAdminRecord>& students, const std::string& studentId) {
@@ -98,7 +98,22 @@ std::string findStudentName(const std::vector<UserAdminRecord>& students, const 
         }
     }
 
-    return "Khong tim thay sinh vien";
+    return "Student not found";
+}
+
+std::string findStudentClass(const std::vector<UserAdminRecord>& students, const std::string& studentId) {
+    for (const UserAdminRecord& student : students) {
+        if (getField(student, 0) == studentId) {
+            const size_t classIndex = (student.fields.size() >= 10 && student.fields.back() == "student") ? 8 : 7;
+            std::string className = getField(student, classIndex);
+            if (className.empty()) {
+                className = "No class";
+            }
+            return className;
+        }
+    }
+
+    return "Class not found";
 }
 
 std::string findCourseName(const std::vector<UserAdminRecord>& courses, const std::string& courseId) {
@@ -108,7 +123,7 @@ std::string findCourseName(const std::vector<UserAdminRecord>& courses, const st
         }
     }
 
-    return "Khong tim thay khoa hoc";
+    return "Course not found";
 }
 
 int calculateCourseTuition(const std::vector<UserAdminRecord>& courses, const std::string& courseId) {
@@ -157,7 +172,26 @@ std::string readRequiredText(const std::string& label) {
             return value;
         }
 
-        std::cout << "Gia tri khong duoc de trong.\n";
+        std::cout << "Value cannot be empty.\n";
+    }
+}
+
+bool readRequiredTextOrCancel(const std::string& label, std::string& value) {
+    while (true) {
+        std::cout << label << " (enter 0 to cancel): ";
+        std::getline(std::cin, value);
+        value = trim(value);
+
+        if (value == "0") {
+            std::cout << "Operation cancelled.\n";
+            return false;
+        }
+
+        if (!value.empty()) {
+            return true;
+        }
+
+        std::cout << "Value cannot be empty.\n";
     }
 }
 
@@ -177,7 +211,32 @@ int readPositiveNumber(const std::string& label) {
         } catch (...) {
         }
 
-        std::cout << "Vui long nhap so nguyen duong.\n";
+        std::cout << "Please enter a positive integer.\n";
+    }
+}
+
+bool readPositiveNumberOrCancel(const std::string& label, int& number) {
+    std::string value;
+
+    while (true) {
+        std::cout << label << " (enter 0 to cancel): ";
+        std::getline(std::cin, value);
+        value = trim(value);
+
+        if (value == "0") {
+            std::cout << "Operation cancelled.\n";
+            return false;
+        }
+
+        try {
+            number = std::stoi(value);
+            if (number > 0) {
+                return true;
+            }
+        } catch (...) {
+        }
+
+        std::cout << "Please enter a positive integer.\n";
     }
 }
 
@@ -204,7 +263,7 @@ std::string fitColumn(const std::string& value, size_t width) {
 bool appendCourse(const std::string& filePath, const std::vector<std::string>& fields) {
     std::ofstream fout(filePath, std::ios::app);
     if (!fout.is_open()) {
-        std::cerr << "Khong ghi duoc file: " << filePath << '\n';
+        std::cerr << "Cannot write file: " << filePath << '\n';
         return false;
     }
 
@@ -226,21 +285,21 @@ void addTeacherCourseNotification(const std::string& baseDir,
     std::ofstream fout(filePath, std::ios::app);
 
     if (!fout.is_open()) {
-        std::cerr << "Khong ghi duoc file: " << filePath << '\n';
+        std::cerr << "Cannot write file: " << filePath << '\n';
         return;
     }
 
     fout << teacherId << " | "
          << courseId << " | "
          << courseName << " | "
-         << "Ban duoc phan bo vao mon hoc moi"
+         << "You have been assigned to a new course"
          << '\n';
 }
 
 bool saveRecordList(const std::string& filePath, const std::vector<UserAdminRecord>& records) {
     std::ofstream fout(filePath);
     if (!fout.is_open()) {
-        std::cerr << "Khong ghi duoc file: " << filePath << '\n';
+        std::cerr << "Cannot write file: " << filePath << '\n';
         return false;
     }
 
@@ -262,10 +321,10 @@ void printCourseEnrollmentList(const std::string& baseDir) {
     const std::vector<UserAdminRecord> enrollments = loadAdminUserList(joinPath(baseDir, "enrollment.csv"));
     const std::vector<UserAdminRecord> teachers = loadAdminUserList(joinPath(baseDir, "teacher.csv"));
 
-    std::cout << "\n===== DANH SACH KHOA HOC VA DANG KY =====\n";
+    std::cout << "\n===== COURSE AND ENROLLMENT LIST =====\n";
 
     if (courses.empty()) {
-        std::cout << "Chua co du lieu khoa hoc.\n";
+        std::cout << "No course data available.\n";
         return;
     }
 
@@ -281,15 +340,15 @@ void printCourseEnrollmentList(const std::string& baseDir) {
     const int totalWidth = wId + wName + wCredits + wTeacher + wStudents + wFee + wStart + wEnd + wStatus;
 
     std::cout << std::left
-              << std::setw(wId) << "Ma KH"
-              << std::setw(wName) << "Ten khoa hoc"
-              << std::setw(wCredits) << "Tin chi"
-              << std::setw(wTeacher) << "Giao vien"
-              << std::setw(wStudents) << "Si so"
-              << std::setw(wFee) << "Hoc phi"
-              << std::setw(wStart) << "Bat dau"
-              << std::setw(wEnd) << "Ket thuc"
-              << std::setw(wStatus) << "Trang thai"
+              << std::setw(wId) << "Course ID"
+              << std::setw(wName) << "Course name"
+              << std::setw(wCredits) << "Credits"
+              << std::setw(wTeacher) << "Teacher"
+              << std::setw(wStudents) << "Enrollment"
+              << std::setw(wFee) << "Tuition"
+              << std::setw(wStart) << "Start date"
+              << std::setw(wEnd) << "End date"
+              << std::setw(wStatus) << "Status"
               << '\n';
     std::cout << std::string(totalWidth, '-') << '\n';
 
@@ -317,22 +376,22 @@ void printCourseEnrollmentList(const std::string& baseDir) {
                   << std::setw(wFee) << fitColumn(feePerCredit, wFee - 1)
                   << std::setw(wStart) << fitColumn(startDate, wStart - 1)
                   << std::setw(wEnd) << fitColumn(endDate, wEnd - 1)
-                  << std::setw(wStatus) << (isClosed ? "Da dong" : "Dang mo")
+                  << std::setw(wStatus) << (isClosed ? "Closed" : "Open")
                   << '\n';
     }
 }
 
 void printCourseDetailForEdit(const UserAdminRecord& course) {
-    std::cout << "\nDang sua khoa hoc: " << getField(course, 1)
+    std::cout << "\nEditing course: " << getField(course, 1)
               << " (" << getField(course, 0) << ")\n";
-    std::cout << "1. Ten khoa hoc: " << getField(course, 1) << '\n';
-    std::cout << "2. So tin chi: " << getField(course, 2) << '\n';
-    std::cout << "3. Ma giao vien: " << getField(course, 3) << '\n';
-    std::cout << "4. So luong sinh vien toi da: " << getField(course, 4) << '\n';
-    std::cout << "5. Tien hoc moi tin chi: " << getField(course, 5) << '\n';
-    std::cout << "6. Ngay bat dau: " << getField(course, 6) << '\n';
-    std::cout << "7. Ngay ket thuc: " << getField(course, 7) << '\n';
-    std::cout << "0. Luu va quay lai\n";
+    std::cout << "1. Course name: " << getField(course, 1) << '\n';
+    std::cout << "2. Credits: " << getField(course, 2) << '\n';
+    std::cout << "3. Teacher ID: " << getField(course, 3) << '\n';
+    std::cout << "4. Maximum students: " << getField(course, 4) << '\n';
+    std::cout << "5. Fee per credit: " << getField(course, 5) << '\n';
+    std::cout << "6. Start date: " << getField(course, 6) << '\n';
+    std::cout << "7. End date: " << getField(course, 7) << '\n';
+    std::cout << "0. Save and return\n";
 }
 
 void createCourse(const std::string& baseDir) {
@@ -341,33 +400,59 @@ void createCourse(const std::string& baseDir) {
     const std::vector<UserAdminRecord> courses = loadAdminUserList(coursePath);
     const std::vector<UserAdminRecord> teachers = loadAdminUserList(teacherPath);
 
-    std::cout << "\n===== TAO KHOA HOC MOI =====\n";
+    std::cout << "\n===== CREATE NEW COURSE =====\n";
 
     std::string courseId;
     while (true) {
-        courseId = readRequiredText("Ma khoa hoc: ");
+        if (!readRequiredTextOrCancel("Course ID", courseId)) {
+            return;
+        }
         if (!recordIdExists(courses, courseId)) {
             break;
         }
-        std::cout << "Ma khoa hoc da ton tai. Vui long nhap ma khac.\n";
+        std::cout << "Course ID already exists. Please enter another ID.\n";
     }
 
-    const std::string courseName = readRequiredText("Ten khoa hoc: ");
-    const int credits = readPositiveNumber("So tin chi: ");
+    std::string courseName;
+    if (!readRequiredTextOrCancel("Course name", courseName)) {
+        return;
+    }
+
+    int credits = 0;
+    if (!readPositiveNumberOrCancel("Credits", credits)) {
+        return;
+    }
 
     std::string teacherId;
     while (true) {
-        teacherId = readRequiredText("Ma giao vien phu trach: ");
+        if (!readRequiredTextOrCancel("Assigned teacher ID", teacherId)) {
+            return;
+        }
         if (recordIdExists(teachers, teacherId)) {
             break;
         }
-        std::cout << "Khong tim thay giao vien voi ma nay.\n";
+        std::cout << "No teacher found with this ID.\n";
     }
 
-    const int maxStudents = readPositiveNumber("So luong sinh vien toi da: ");
-    const int feePerCredit = readPositiveNumber("Tien hoc moi tin chi: ");
-    const std::string startDate = readRequiredText("Ngay bat dau (dd/mm/yyyy): ");
-    const std::string endDate = readRequiredText("Ngay ket thuc (dd/mm/yyyy): ");
+    int maxStudents = 0;
+    if (!readPositiveNumberOrCancel("Maximum students", maxStudents)) {
+        return;
+    }
+
+    int feePerCredit = 0;
+    if (!readPositiveNumberOrCancel("Fee per credit", feePerCredit)) {
+        return;
+    }
+
+    std::string startDate;
+    if (!readRequiredTextOrCancel("Start date (dd/mm/yyyy)", startDate)) {
+        return;
+    }
+
+    std::string endDate;
+    if (!readRequiredTextOrCancel("End date (dd/mm/yyyy)", endDate)) {
+        return;
+    }
 
     if (appendCourse(coursePath, {
             courseId,
@@ -380,7 +465,7 @@ void createCourse(const std::string& baseDir) {
             endDate
         })) {
         addTeacherCourseNotification(baseDir, teacherId, courseId, courseName);
-        std::cout << "Da tao khoa hoc thanh cong.\n";
+        std::cout << "Course created successfully.\n";
     }
 }
 
@@ -390,8 +475,11 @@ void editCourse(const std::string& baseDir) {
     std::vector<UserAdminRecord> courses = loadAdminUserList(coursePath);
     const std::vector<UserAdminRecord> teachers = loadAdminUserList(teacherPath);
 
-    std::cout << "\n===== SUA KHOA HOC =====\n";
-    const std::string courseId = readRequiredText("Nhap ma khoa hoc can sua: ");
+    std::cout << "\n===== EDIT COURSE =====\n";
+    std::string courseId;
+    if (!readRequiredTextOrCancel("Enter course ID to edit", courseId)) {
+        return;
+    }
 
     for (UserAdminRecord& course : courses) {
         if (getField(course, 0) != courseId) {
@@ -418,60 +506,86 @@ void editCourse(const std::string& baseDir) {
                             getField(course, 1)
                         );
                     }
-                    std::cout << "Cap nhat khoa hoc thanh cong.\n";
+                    std::cout << "Course updated successfully.\n";
                 }
                 return;
             }
 
             switch (choice) {
-                case 1:
-                    course.fields[1] = readRequiredText("Ten khoa hoc moi: ");
+                case 1: {
+                    std::string newValue;
+                    if (readRequiredTextOrCancel("New course name", newValue)) {
+                        course.fields[1] = newValue;
+                    }
                     break;
-                case 2:
-                    course.fields[2] = std::to_string(readPositiveNumber("So tin chi moi: "));
+                }
+                case 2: {
+                    int newValue = 0;
+                    if (readPositiveNumberOrCancel("New credits", newValue)) {
+                        course.fields[2] = std::to_string(newValue);
+                    }
                     break;
+                }
                 case 3: {
                     std::string newTeacherId;
                     while (true) {
-                        newTeacherId = readRequiredText("Ma giao vien moi: ");
-                        if (recordIdExists(teachers, newTeacherId)) {
+                        if (!readRequiredTextOrCancel("New teacher ID", newTeacherId)) {
                             break;
                         }
-                        std::cout << "Khong tim thay giao vien voi ma nay.\n";
+                        if (recordIdExists(teachers, newTeacherId)) {
+                            course.fields[3] = newTeacherId;
+                            break;
+                        }
+                        std::cout << "No teacher found with this ID.\n";
                     }
-                    course.fields[3] = newTeacherId;
                     break;
                 }
-                case 4:
-                    course.fields[4] = std::to_string(readPositiveNumber("So luong sinh vien toi da moi: "));
+                case 4: {
+                    int newValue = 0;
+                    if (readPositiveNumberOrCancel("New maximum students", newValue)) {
+                        course.fields[4] = std::to_string(newValue);
+                    }
                     break;
-                case 5:
-                    course.fields[5] = std::to_string(readPositiveNumber("Tien hoc moi tin chi moi: "));
+                }
+                case 5: {
+                    int newValue = 0;
+                    if (readPositiveNumberOrCancel("New fee per credit", newValue)) {
+                        course.fields[5] = std::to_string(newValue);
+                    }
                     break;
-                case 6:
-                    course.fields[6] = readRequiredText("Ngay bat dau moi (dd/mm/yyyy): ");
+                }
+                case 6: {
+                    std::string newValue;
+                    if (readRequiredTextOrCancel("New start date (dd/mm/yyyy)", newValue)) {
+                        course.fields[6] = newValue;
+                    }
                     break;
-                case 7:
-                    course.fields[7] = readRequiredText("Ngay ket thuc moi (dd/mm/yyyy): ");
+                }
+                case 7: {
+                    std::string newValue;
+                    if (readRequiredTextOrCancel("New end date (dd/mm/yyyy)", newValue)) {
+                        course.fields[7] = newValue;
+                    }
                     break;
+                }
                 default:
-                    std::cout << "Lua chon khong hop le.\n";
+                    std::cout << "Invalid choice.\n";
                     break;
             }
         }
     }
 
-    std::cout << "Khong tim thay khoa hoc voi ma: " << courseId << '\n';
+    std::cout << "No course found with ID: " << courseId << '\n';
 }
 
 void runCourseMenu(const std::string& baseDir) {
     while (true) {
-        std::cout << "\n===== QUAN LY KHOA HOC =====\n";
-        std::cout << "1. Xem khoa hoc va thong tin dang ky\n";
-        std::cout << "2. Tao khoa hoc moi\n";
-        std::cout << "3. Sua khoa hoc\n";
-        std::cout << "0. Quay lai menu admin\n";
-        std::cout << "9. Thoat chuong trinh\n";
+        std::cout << "\n===== COURSE MANAGEMENT =====\n";
+        std::cout << "1. View courses and enrollment information\n";
+        std::cout << "2. Create new course\n";
+        std::cout << "3. Edit course\n";
+        std::cout << "0. Back to admin menu\n";
+        std::cout << "9. Exit program\n";
 
         switch (readChoice()) {
             case 1:
@@ -491,7 +605,7 @@ void runCourseMenu(const std::string& baseDir) {
             case 9:
                 exitProgram();
             default:
-                std::cout << "Lua chon khong hop le. Vui long chon lai.\n";
+                std::cout << "Invalid choice. Please try again.\n";
                 break;
         }
     }
@@ -502,10 +616,10 @@ void printTuitionList(const std::string& baseDir) {
     const std::vector<UserAdminRecord> students = loadAdminUserList(joinPath(baseDir, "student.csv"));
     const std::vector<UserAdminRecord> courses = loadAdminUserList(joinPath(baseDir, "course.csv"));
 
-    std::cout << "\n===== DANH SACH HOC PHI =====\n";
+    std::cout << "\n===== TUITION LIST =====\n";
 
     if (enrollments.empty()) {
-        std::cout << "Chua co du lieu dang ky hoc phi.\n";
+        std::cout << "No tuition enrollment data available.\n";
         return;
     }
 
@@ -519,23 +633,50 @@ void printTuitionList(const std::string& baseDir) {
     const int wStatus = 14;
     const int totalWidth = wEnroll + wStudentId + wStudent + wCourseId + wCourse + wDate + wTuition + wStatus;
 
-    std::cout << std::left
-              << std::setw(wEnroll) << "Ma DK"
-              << std::setw(wStudentId) << "Ma SV"
-              << std::setw(wStudent) << "Sinh vien"
-              << std::setw(wCourseId) << "Ma KH"
-              << std::setw(wCourse) << "Khoa hoc"
-              << std::setw(wDate) << "Ngay DK"
-              << std::setw(wTuition) << "Hoc phi"
-              << std::setw(wStatus) << "Trang thai"
-              << '\n';
-    std::cout << std::string(totalWidth, '-') << '\n';
-
     long long totalTuition = 0;
     long long paidTuition = 0;
     long long unpaidTuition = 0;
+    std::vector<std::string> classes;
 
     for (const UserAdminRecord& enrollment : enrollments) {
+        const std::string studentClass = findStudentClass(students, getField(enrollment, 1));
+        bool exists = false;
+
+        for (const std::string& currentClass : classes) {
+            if (currentClass == studentClass) {
+                exists = true;
+                break;
+            }
+        }
+
+        if (!exists) {
+            classes.push_back(studentClass);
+        }
+    }
+
+    for (const std::string& className : classes) {
+        long long classTotal = 0;
+        long long classPaid = 0;
+        long long classUnpaid = 0;
+
+        std::cout << "\n--- Class: " << className << " ---\n";
+        std::cout << std::left
+                  << std::setw(wEnroll) << "Enrollment ID"
+                  << std::setw(wStudentId) << "Student ID"
+                  << std::setw(wStudent) << "Student"
+                  << std::setw(wCourseId) << "Course ID"
+                  << std::setw(wCourse) << "Course"
+                  << std::setw(wDate) << "Enroll date"
+                  << std::setw(wTuition) << "Tuition"
+                  << std::setw(wStatus) << "Status"
+                  << '\n';
+        std::cout << std::string(totalWidth, '-') << '\n';
+
+        for (const UserAdminRecord& enrollment : enrollments) {
+            if (findStudentClass(students, getField(enrollment, 1)) != className) {
+                continue;
+            }
+
         const std::string enrollId = getField(enrollment, 0);
         const std::string studentId = getField(enrollment, 1);
         const std::string courseId = getField(enrollment, 2);
@@ -552,9 +693,12 @@ void printTuitionList(const std::string& baseDir) {
         totalTuition += tuition;
         if (paymentStatus == "Paid" || paymentStatus == "paid") {
             paidTuition += tuition;
+            classPaid += tuition;
         } else {
             unpaidTuition += tuition;
+            classUnpaid += tuition;
         }
+        classTotal += tuition;
 
         std::cout << std::left
                   << std::setw(wEnroll) << fitColumn(enrollId, wEnroll - 1)
@@ -566,20 +710,28 @@ void printTuitionList(const std::string& baseDir) {
                   << std::setw(wTuition) << tuition
                   << std::setw(wStatus) << fitColumn(paymentStatus, wStatus - 1)
                   << '\n';
+        }
+
+        std::cout << std::string(totalWidth, '-') << '\n';
+        std::cout << "Class total " << className << ": " << classTotal
+                  << " | Paid: " << classPaid
+                  << " | Unpaid: " << classUnpaid << '\n';
     }
 
-    std::cout << std::string(totalWidth, '-') << '\n';
-    std::cout << "Tong hoc phi: " << totalTuition
-              << " | Da thanh toan: " << paidTuition
-              << " | Chua thanh toan: " << unpaidTuition << '\n';
+    std::cout << "\nTotal tuition for all classes: " << totalTuition
+              << " | Paid: " << paidTuition
+              << " | Unpaid: " << unpaidTuition << '\n';
 }
 
 void updatePaymentStatus(const std::string& baseDir) {
     const std::string enrollmentPath = joinPath(baseDir, "enrollment.csv");
     std::vector<UserAdminRecord> enrollments = loadAdminUserList(enrollmentPath);
 
-    std::cout << "\n===== CAP NHAT TRANG THAI HOC PHI =====\n";
-    const std::string enrollId = readRequiredText("Nhap ma dang ky: ");
+    std::cout << "\n===== UPDATE TUITION PAYMENT STATUS =====\n";
+    std::string enrollId;
+    if (!readRequiredTextOrCancel("Enter enrollment ID", enrollId)) {
+        return;
+    }
 
     for (UserAdminRecord& enrollment : enrollments) {
         if (getField(enrollment, 0) != enrollId) {
@@ -590,8 +742,8 @@ void updatePaymentStatus(const std::string& baseDir) {
             enrollment.fields.push_back("");
         }
 
-        std::cout << "1. Da thanh toan\n";
-        std::cout << "2. Chua thanh toan\n";
+        std::cout << "1. Paid\n";
+        std::cout << "2. Unpaid\n";
         const int choice = readChoice();
 
         if (choice == 1) {
@@ -599,26 +751,26 @@ void updatePaymentStatus(const std::string& baseDir) {
         } else if (choice == 2) {
             enrollment.fields[8] = "Unpaid";
         } else {
-            std::cout << "Lua chon khong hop le.\n";
+            std::cout << "Invalid choice.\n";
             return;
         }
 
         if (saveRecordList(enrollmentPath, enrollments)) {
-            std::cout << "Cap nhat trang thai hoc phi thanh cong.\n";
+            std::cout << "Tuition payment status updated successfully.\n";
         }
         return;
     }
 
-    std::cout << "Khong tim thay ma dang ky: " << enrollId << '\n';
+    std::cout << "Enrollment ID not found: " << enrollId << '\n';
 }
 
 void runPaymentMenu(const std::string& baseDir) {
     while (true) {
-        std::cout << "\n===== QUAN LY HOC PHI =====\n";
-        std::cout << "1. Xem danh sach hoc phi\n";
-        std::cout << "2. Cap nhat trang thai thanh toan\n";
-        std::cout << "0. Quay lai menu admin\n";
-        std::cout << "9. Thoat chuong trinh\n";
+        std::cout << "\n===== TUITION MANAGEMENT =====\n";
+        std::cout << "1. View tuition list\n";
+        std::cout << "2. Update payment status\n";
+        std::cout << "0. Back to admin menu\n";
+        std::cout << "9. Exit program\n";
 
         switch (readChoice()) {
             case 1:
@@ -634,7 +786,7 @@ void runPaymentMenu(const std::string& baseDir) {
             case 9:
                 exitProgram();
             default:
-                std::cout << "Lua chon khong hop le. Vui long chon lai.\n";
+                std::cout << "Invalid choice. Please try again.\n";
                 break;
         }
     }
@@ -647,7 +799,7 @@ std::vector<UserAdminRecord> loadAdminUserList(const std::string& filePath) {
     std::string line;
 
     if (!fin.is_open()) {
-        std::cerr << "Khong mo duoc file: " << filePath << '\n';
+        std::cerr << "Cannot open file: " << filePath << '\n';
         return records;
     }
 
@@ -665,7 +817,7 @@ std::vector<UserAdminRecord> loadAdminUserList(const std::string& filePath) {
 }
 
 void printUserList(const std::string& title, const std::vector<UserAdminRecord>& records) {
-    std::cout << "\n=== " << title << " (" << records.size() << " ban ghi) ===\n";
+    std::cout << "\n=== " << title << " (" << records.size() << " records) ===\n";
 
     for (size_t i = 0; i < records.size(); ++i) {
         std::cout << std::setw(2) << (i + 1) << ". ";
@@ -679,10 +831,210 @@ void printUserList(const std::string& title, const std::vector<UserAdminRecord>&
     }
 }
 
+size_t studentInfoIndex(const UserAdminRecord& student, size_t newIndex) {
+    if (student.fields.size() >= 10 && student.fields.back() == "student") {
+        return newIndex;
+    }
+
+    if (newIndex >= 4) {
+        return newIndex - 1;
+    }
+
+    return newIndex;
+}
+
+std::string getStudentMajor(const UserAdminRecord& student) {
+    std::string major = getField(student, studentInfoIndex(student, 7));
+    if (major.empty()) {
+        major = "No major";
+    }
+    return major;
+}
+
+void printStudentListByMajor(const std::vector<UserAdminRecord>& students) {
+    std::vector<std::string> majors;
+
+    for (const UserAdminRecord& student : students) {
+        const std::string major = getStudentMajor(student);
+        bool exists = false;
+
+        for (const std::string& currentMajor : majors) {
+            if (currentMajor == major) {
+                exists = true;
+                break;
+            }
+        }
+
+        if (!exists) {
+            majors.push_back(major);
+        }
+    }
+
+    std::cout << "\n=== STUDENT LIST BY MAJOR (" << students.size() << " records) ===\n";
+
+    if (students.empty()) {
+        std::cout << "No student data available.\n";
+        return;
+    }
+
+    const int wNo = 5;
+    const int wId = 13;
+    const int wName = 24;
+    const int wEmail = 30;
+    const int wDob = 14;
+    const int wPhone = 14;
+    const int wClass = 12;
+    const int totalWidth = wNo + wId + wName + wEmail + wDob + wPhone + wClass;
+
+    for (const std::string& major : majors) {
+        int count = 0;
+        for (const UserAdminRecord& student : students) {
+            if (getStudentMajor(student) == major) {
+                ++count;
+            }
+        }
+
+        std::cout << "\n--- Major/Department: " << major << " (" << count << " students) ---\n";
+        std::cout << std::left
+                  << std::setw(wNo) << "No."
+                  << std::setw(wId) << "Student ID"
+                  << std::setw(wName) << "Full name"
+                  << std::setw(wEmail) << "Email"
+                  << std::setw(wDob) << "Date of birth"
+                  << std::setw(wPhone) << "Phone"
+                  << std::setw(wClass) << "Class"
+                  << '\n';
+        std::cout << std::string(totalWidth, '-') << '\n';
+
+        int index = 1;
+        for (const UserAdminRecord& student : students) {
+            if (getStudentMajor(student) != major) {
+                continue;
+            }
+
+            std::cout << std::left
+                      << std::setw(wNo) << index
+                      << std::setw(wId) << fitColumn(getField(student, 0), wId - 1)
+                      << std::setw(wName) << fitColumn(getField(student, 1), wName - 1)
+                      << std::setw(wEmail) << fitColumn(getField(student, 2), wEmail - 1)
+                      << std::setw(wDob) << fitColumn(getField(student, studentInfoIndex(student, 4)), wDob - 1)
+                      << std::setw(wPhone) << fitColumn(getField(student, studentInfoIndex(student, 5)), wPhone - 1)
+                      << std::setw(wClass) << fitColumn(getField(student, studentInfoIndex(student, 8)), wClass - 1)
+                      << '\n';
+            ++index;
+        }
+    }
+}
+
+size_t teacherInfoIndex(const UserAdminRecord& teacher, size_t newIndex) {
+    if (teacher.fields.size() >= 9 && teacher.fields.back() == "teacher") {
+        if (newIndex == 4) return 5;
+        if (newIndex == 5) return 4;
+        return newIndex;
+    }
+
+    if (newIndex == 4) return teacher.fields.size();
+    if (newIndex >= 5) return newIndex - 1;
+    return newIndex;
+}
+
+bool isDateText(const std::string& value) {
+    return value.size() == 10 &&
+           value[2] == '/' &&
+           value[5] == '/';
+}
+
+size_t teacherPhoneIndex(const UserAdminRecord& teacher) {
+    return 4;
+}
+
+std::string getTeacherDepartment(const UserAdminRecord& teacher) {
+    std::string department = getField(teacher, teacherInfoIndex(teacher, 7));
+    if (department.empty()) {
+        department = "No department";
+    }
+    return department;
+}
+
+void printTeacherListByDepartment(const std::vector<UserAdminRecord>& teachers) {
+    std::vector<std::string> departments;
+
+    for (const UserAdminRecord& teacher : teachers) {
+        const std::string department = getTeacherDepartment(teacher);
+        bool exists = false;
+
+        for (const std::string& currentDepartment : departments) {
+            if (currentDepartment == department) {
+                exists = true;
+                break;
+            }
+        }
+
+        if (!exists) {
+            departments.push_back(department);
+        }
+    }
+
+    std::cout << "\n=== TEACHER LIST BY DEPARTMENT (" << teachers.size() << " records) ===\n";
+
+    if (teachers.empty()) {
+        std::cout << "No teacher data available.\n";
+        return;
+    }
+
+    const int wNo = 5;
+    const int wId = 13;
+    const int wName = 24;
+    const int wEmail = 30;
+    const int wDob = 14;
+    const int wPhone = 14;
+    const int wAddress = 14;
+    const int totalWidth = wNo + wId + wName + wEmail + wDob + wPhone + wAddress;
+
+    for (const std::string& department : departments) {
+        int count = 0;
+        for (const UserAdminRecord& teacher : teachers) {
+            if (getTeacherDepartment(teacher) == department) {
+                ++count;
+            }
+        }
+
+        std::cout << "\n--- Department/Major: " << department << " (" << count << " teachers) ---\n";
+        std::cout << std::left
+                  << std::setw(wNo) << "No."
+                  << std::setw(wId) << "Teacher ID"
+                  << std::setw(wName) << "Full name"
+                  << std::setw(wEmail) << "Email"
+                  << std::setw(wDob) << "Date of birth"
+                  << std::setw(wPhone) << "Phone"
+                  << std::setw(wAddress) << "Address"
+                  << '\n';
+        std::cout << std::string(totalWidth, '-') << '\n';
+
+        int index = 1;
+        for (const UserAdminRecord& teacher : teachers) {
+            if (getTeacherDepartment(teacher) != department) {
+                continue;
+            }
+
+            std::cout << std::left
+                      << std::setw(wNo) << index
+                      << std::setw(wId) << fitColumn(getField(teacher, 0), wId - 1)
+                      << std::setw(wName) << fitColumn(getField(teacher, 1), wName - 1)
+                      << std::setw(wEmail) << fitColumn(getField(teacher, 2), wEmail - 1)
+                      << std::setw(wDob) << fitColumn(getField(teacher, teacherInfoIndex(teacher, 4)), wDob - 1)
+                      << std::setw(wPhone) << fitColumn(getField(teacher, teacherPhoneIndex(teacher)), wPhone - 1)
+                      << std::setw(wAddress) << fitColumn(getField(teacher, teacherInfoIndex(teacher, 6)), wAddress - 1)
+                      << '\n';
+            ++index;
+        }
+    }
+}
+
 bool saveAdminUserList(const std::string& filePath, const std::vector<UserAdminRecord>& records) {
     std::ofstream fout(filePath);
     if (!fout.is_open()) {
-        std::cerr << "Khong ghi duoc file: " << filePath << '\n';
+        std::cerr << "Cannot write file: " << filePath << '\n';
         return false;
     }
 
@@ -705,26 +1057,32 @@ void addUserRecord(const std::string& filePath,
     std::vector<UserAdminRecord> records = loadAdminUserList(filePath);
     UserAdminRecord newRecord;
 
-    std::cout << "\n===== THEM " << role << " =====\n";
+    std::cout << "\n===== ADD " << role << " =====\n";
 
     std::string id;
     while (true) {
-        id = readRequiredText(fieldLabels[0] + ": ");
+        if (!readRequiredTextOrCancel(fieldLabels[0], id)) {
+            return;
+        }
         if (!recordIdExists(records, id)) {
             break;
         }
-        std::cout << "ID da ton tai. Vui long nhap ID khac.\n";
+        std::cout << "ID already exists. Please enter another ID.\n";
     }
     newRecord.fields.push_back(id);
 
     for (size_t i = 1; i < fieldLabels.size(); ++i) {
-        newRecord.fields.push_back(readRequiredText(fieldLabels[i] + ": "));
+        std::string value;
+        if (!readRequiredTextOrCancel(fieldLabels[i], value)) {
+            return;
+        }
+        newRecord.fields.push_back(value);
     }
     newRecord.fields.push_back(role);
 
     records.push_back(newRecord);
     if (saveAdminUserList(filePath, records)) {
-        std::cout << "Them " << role << " thanh cong.\n";
+        std::cout << "Add " << role << " successfully.\n";
     }
 }
 
@@ -732,34 +1090,41 @@ void ensureDateOfBirthField(UserAdminRecord& record, const std::string& role) {
     const size_t legacySize = (role == "student") ? 9 : 8;
 
     if (record.fields.size() == legacySize && record.fields.back() == role) {
-        record.fields.insert(record.fields.begin() + 4, "");
+        const size_t insertIndex = (role == "teacher") ? 5 : 4;
+        record.fields.insert(record.fields.begin() + insertIndex, "");
     }
 }
 
 void deleteUserRecord(const std::string& filePath, const std::string& role) {
     std::vector<UserAdminRecord> records = loadAdminUserList(filePath);
 
-    std::cout << "\n===== XOA " << role << " =====\n";
-    const std::string id = readRequiredText("Nhap ID can xoa: ");
+    std::cout << "\n===== DELETE " << role << " =====\n";
+    std::string id;
+    if (!readRequiredTextOrCancel("Enter ID to delete", id)) {
+        return;
+    }
 
     for (size_t i = 0; i < records.size(); ++i) {
         if (getField(records[i], 0) == id) {
-            std::cout << "Tim thay: " << getField(records[i], 1) << '\n';
-            const std::string confirm = readRequiredText("Nhap y de xac nhan xoa: ");
+            std::cout << "Found: " << getField(records[i], 1) << '\n';
+            std::string confirm;
+            if (!readRequiredTextOrCancel("Enter y to confirm deletion", confirm)) {
+                return;
+            }
 
             if (confirm == "y" || confirm == "Y") {
                 records.erase(records.begin() + i);
                 if (saveAdminUserList(filePath, records)) {
-                    std::cout << "Xoa " << role << " thanh cong.\n";
+                    std::cout << "Delete " << role << " successfully.\n";
                 }
             } else {
-                std::cout << "Da huy thao tac xoa.\n";
+                std::cout << "Delete cancelled.\n";
             }
             return;
         }
     }
 
-    std::cout << "Khong tim thay ID: " << id << '\n';
+    std::cout << "ID not found: " << id << '\n';
 }
 
 void editUserRecord(const std::string& filePath,
@@ -767,8 +1132,11 @@ void editUserRecord(const std::string& filePath,
                     const std::vector<std::string>& fieldLabels) {
     std::vector<UserAdminRecord> records = loadAdminUserList(filePath);
 
-    std::cout << "\n===== SUA " << role << " =====\n";
-    const std::string id = readRequiredText("Nhap ID can sua: ");
+    std::cout << "\n===== EDIT " << role << " =====\n";
+    std::string id;
+    if (!readRequiredTextOrCancel("Enter ID to edit", id)) {
+        return;
+    }
 
     for (UserAdminRecord& record : records) {
         if (getField(record, 0) != id) {
@@ -778,81 +1146,84 @@ void editUserRecord(const std::string& filePath,
         ensureDateOfBirthField(record, role);
 
         while (true) {
-            std::cout << "\nDang sua: " << getField(record, 1) << " (" << id << ")\n";
+            std::cout << "\nEditing: " << getField(record, 1) << " (" << id << ")\n";
             for (size_t i = 1; i < fieldLabels.size(); ++i) {
                 std::cout << i << ". " << fieldLabels[i]
-                          << " hien tai: " << getField(record, i) << '\n';
+                          << " current: " << getField(record, i) << '\n';
             }
-            std::cout << "0. Luu va quay lai\n";
+            std::cout << "0. Save and return\n";
 
             const int choice = readChoice();
             if (choice == 0) {
                 if (saveAdminUserList(filePath, records)) {
-                    std::cout << "Cap nhat " << role << " thanh cong.\n";
+                    std::cout << "Updated " << role << " successfully.\n";
                 }
                 return;
             }
 
             if (choice < 1 || static_cast<size_t>(choice) >= fieldLabels.size()) {
-                std::cout << "Lua chon khong hop le.\n";
+                std::cout << "Invalid choice.\n";
                 continue;
             }
 
             while (record.fields.size() <= static_cast<size_t>(choice)) {
                 record.fields.push_back("");
             }
-            record.fields[choice] = readRequiredText("Gia tri moi: ");
+            std::string newValue;
+            if (readRequiredTextOrCancel("New value", newValue)) {
+                record.fields[choice] = newValue;
+            }
         }
     }
 
-    std::cout << "Khong tim thay ID: " << id << '\n';
+    std::cout << "ID not found: " << id << '\n';
 }
 
-void runDanhSachNguoiDung(const std::string& baseDir) {
+void runUserListMenu(const std::string& baseDir) {
     const std::vector<UserAdminRecord> students = loadAdminUserList(joinPath(baseDir, "student.csv"));
     const std::vector<UserAdminRecord> teachers = loadAdminUserList(joinPath(baseDir, "teacher.csv"));
     const std::vector<UserAdminRecord> admins = loadAdminUserList(joinPath(baseDir, "admin.csv"));
 
     int choice = -1;
     while (true) {
-        std::cout << "\n===== MENU DANH SACH =====\n";
-        std::cout << "1. In danh sach Student\n";
-        std::cout << "2. In danh sach Teacher\n";
-        std::cout << "3. In danh sach Admin\n";
-        std::cout << "4. In tat ca danh sach\n";
-        std::cout << "0. Thoat\n";
-        std::cout << "9. Thoat chuong trinh\n";
-        std::cout << "Nhap lua chon: ";
+        std::cout << "\n===== LIST MENU =====\n";
+        std::cout << "1. Print student list\n";
+        std::cout << "2. Print teacher list\n";
+        std::cout << "3. Print admin list\n";
+        std::cout << "4. Print all lists\n";
+        std::cout << "0. Exit\n";
+        std::cout << "9. Exit program\n";
+        std::cout << "Enter your choice: ";
 
         if (!(std::cin >> choice)) {
             std::cin.clear();
             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "Lua chon khong hop le. Vui long nhap lai.\n";
+            std::cout << "Invalid choice. Please try again.\n";
             continue;
         }
 
         switch (choice) {
             case 1:
-                printUserList("Danh sach Student", students);
+                printUserList("Student list", students);
                 break;
             case 2:
-                printUserList("Danh sach Teacher", teachers);
+                printUserList("Teacher list", teachers);
                 break;
             case 3:
-                printUserList("Danh sach Admin", admins);
+                printUserList("Admin list", admins);
                 break;
             case 4:
-                printUserList("Danh sach Student", students);
-                printUserList("Danh sach Teacher", teachers);
-                printUserList("Danh sach Admin", admins);
+                printUserList("Student list", students);
+                printUserList("Teacher list", teachers);
+                printUserList("Admin list", admins);
                 break;
             case 0:
-                std::cout << "Da thoat menu danh sach.\n";
+                std::cout << "Exited list menu.\n";
                 return;
             case 9:
                 exitProgram();
             default:
-                std::cout << "Lua chon khong hop le. Vui long chon lai.\n";
+                std::cout << "Invalid choice. Please try again.\n";
                 break;
         }
     }
@@ -862,28 +1233,28 @@ void runStudentMenu(const std::string& baseDir) {
     const std::string studentPath = joinPath(baseDir, "student.csv");
     const std::vector<std::string> studentFields = {
         "ID",
-        "Ho ten",
+        "Full name",
         "Email",
-        "Mat khau",
-        "Ngay sinh",
-        "So dien thoai",
-        "Dia chi",
-        "Nganh",
-        "Lop"
+        "Password",
+        "Date of birth",
+        "Phone",
+        "Address",
+        "Major",
+        "Class"
     };
 
     while (true) {
-        std::cout << "\n===== QUAN LY SINH VIEN =====\n";
-        std::cout << "1. Xem danh sach sinh vien\n";
-        std::cout << "2. Them sinh vien\n";
-        std::cout << "3. Sua thong tin sinh vien\n";
-        std::cout << "4. Xoa sinh vien\n";
-        std::cout << "0. Quay lai\n";
-        std::cout << "9. Thoat chuong trinh\n";
+        std::cout << "\n===== STUDENT MANAGEMENT =====\n";
+        std::cout << "1. View student list\n";
+        std::cout << "2. Add student\n";
+        std::cout << "3. Edit student information\n";
+        std::cout << "4. Delete student\n";
+        std::cout << "0. Back\n";
+        std::cout << "9. Exit program\n";
 
         switch (readChoice()) {
             case 1:
-                printUserList("Danh sach sinh vien", loadAdminUserList(studentPath));
+                printStudentListByMajor(loadAdminUserList(studentPath));
                 pauseScreen();
                 break;
             case 2:
@@ -903,7 +1274,7 @@ void runStudentMenu(const std::string& baseDir) {
             case 9:
                 exitProgram();
             default:
-                std::cout << "Lua chon khong hop le. Vui long chon lai.\n";
+                std::cout << "Invalid choice. Please try again.\n";
                 break;
         }
     }
@@ -913,27 +1284,27 @@ void runTeacherMenu(const std::string& baseDir) {
     const std::string teacherPath = joinPath(baseDir, "teacher.csv");
     const std::vector<std::string> teacherFields = {
         "ID",
-        "Ho ten",
+        "Full name",
         "Email",
-        "Mat khau",
-        "Ngay sinh",
-        "So dien thoai",
-        "Dia chi",
-        "Bo mon"
+        "Password",
+        "Phone",
+        "Date of birth",
+        "Address",
+        "Department"
     };
 
     while (true) {
-        std::cout << "\n===== QUAN LY GIAO VIEN =====\n";
-        std::cout << "1. Xem danh sach giao vien\n";
-        std::cout << "2. Them giao vien\n";
-        std::cout << "3. Sua thong tin giao vien\n";
-        std::cout << "4. Xoa giao vien\n";
-        std::cout << "0. Quay lai\n";
-        std::cout << "9. Thoat chuong trinh\n";
+        std::cout << "\n===== TEACHER MANAGEMENT =====\n";
+        std::cout << "1. View teacher list\n";
+        std::cout << "2. Add teacher\n";
+        std::cout << "3. Edit teacher information\n";
+        std::cout << "4. Delete teacher\n";
+        std::cout << "0. Back\n";
+        std::cout << "9. Exit program\n";
 
         switch (readChoice()) {
             case 1:
-                printUserList("Danh sach giao vien", loadAdminUserList(teacherPath));
+                printTeacherListByDepartment(loadAdminUserList(teacherPath));
                 pauseScreen();
                 break;
             case 2:
@@ -953,7 +1324,7 @@ void runTeacherMenu(const std::string& baseDir) {
             case 9:
                 exitProgram();
             default:
-                std::cout << "Lua chon khong hop le. Vui long chon lai.\n";
+                std::cout << "Invalid choice. Please try again.\n";
                 break;
         }
     }
@@ -961,13 +1332,13 @@ void runTeacherMenu(const std::string& baseDir) {
 
 void runAdminMenu(const std::string& baseDir) {
     while (true) {
-        std::cout << "\n========== MENU ADMIN ==========\n";
-        std::cout << "1. Quan ly sinh vien\n";
-        std::cout << "2. Quan ly giao vien\n";
-        std::cout << "3. Quan ly khoa hoc\n";
-        std::cout << "4. Quan ly hoc phi\n";
-        std::cout << "0. Dang xuat\n";
-        std::cout << "9. Thoat chuong trinh\n";
+        std::cout << "\n========== ADMIN MENU ==========\n";
+        std::cout << "1. Manage students\n";
+        std::cout << "2. Manage teachers\n";
+        std::cout << "3. Manage courses\n";
+        std::cout << "4. Manage tuition\n";
+        std::cout << "0. Log out\n";
+        std::cout << "9. Exit program\n";
 
         switch (readChoice()) {
             case 1:
@@ -987,7 +1358,7 @@ void runAdminMenu(const std::string& baseDir) {
             case 9:
                 exitProgram();
             default:
-                std::cout << "Lua chon khong hop le. Vui long chon lai.\n";
+                std::cout << "Invalid choice. Please try again.\n";
                 break;
         }
     }

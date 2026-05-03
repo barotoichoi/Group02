@@ -11,7 +11,7 @@ struct UserAdminRecord {
 
 std::vector<UserAdminRecord> loadAdminUserList(const std::string& filePath);
 void printUserList(const std::string& title, const std::vector<UserAdminRecord>& records);
-void runDanhSachNguoiDung(const std::string& baseDir = ".");
+void runUserListMenu(const std::string& baseDir = ".");
 void runStudentMenu(const std::string& baseDir = ".");
 void runTeacherMenu(const std::string& baseDir = ".");
 void runAdminMenu(const std::string& baseDir = ".");
