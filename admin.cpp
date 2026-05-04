@@ -195,6 +195,24 @@ bool readRequiredTextOrCancel(const std::string& label, std::string& value) {
     }
 }
 
+std::string readOptionalTextForUser(const std::string& label,
+                                    const std::string& role,
+                                    bool& hasBlankOptionalField) {
+    std::string value;
+    std::cout << label << " (optional, press Enter to let the "
+              << role << " fill it later): ";
+    std::getline(std::cin, value);
+    value = trim(value);
+
+    if (value.empty()) {
+        hasBlankOptionalField = true;
+        std::cout << "This information is left blank. The "
+                  << role << " should update it later.\n";
+    }
+
+    return value;
+}
+
 int readPositiveNumber(const std::string& label) {
     std::string value;
 
@@ -1071,10 +1089,15 @@ void addUserRecord(const std::string& filePath,
     }
     newRecord.fields.push_back(id);
 
+    bool hasBlankOptionalField = false;
     for (size_t i = 1; i < fieldLabels.size(); ++i) {
         std::string value;
-        if (!readRequiredTextOrCancel(fieldLabels[i], value)) {
-            return;
+        if (i <= 3) {
+            if (!readRequiredTextOrCancel(fieldLabels[i], value)) {
+                return;
+            }
+        } else {
+            value = readOptionalTextForUser(fieldLabels[i], role, hasBlankOptionalField);
         }
         newRecord.fields.push_back(value);
     }
@@ -1083,6 +1106,10 @@ void addUserRecord(const std::string& filePath,
     records.push_back(newRecord);
     if (saveAdminUserList(filePath, records)) {
         std::cout << "Add " << role << " successfully.\n";
+        if (hasBlankOptionalField) {
+            std::cout << "Some optional information was left blank. The "
+                      << role << " can fill it in later.\n";
+        }
     }
 }
 
