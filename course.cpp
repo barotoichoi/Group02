@@ -525,7 +525,6 @@ static void printRegisteredCourseTable(const vector<vector<string>>& enrollments
 static void viewRegisteredCourses(const string& studentId) {
     vector<vector<string>> enrollments = readCsvRows(ENROLL_FILE);
     vector<vector<string>> courses = readCourseFile();
-
     cout << "\n===== VIEW COURSES =====\n";
 
     bool hasEnrollment = false;
