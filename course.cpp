@@ -421,7 +421,7 @@ static void viewRegisteredCourses(const string& studentId) {
     vector<vector<string>> enrollments = readCsvRows(ENROLL_FILE);
     vector<vector<string>> courses = readCourseFile();
 
-    cout << "\n===== REGISTERED COURSES =====\n";
+    // cout << "\n===== REGISTERED COURSES =====\n";
 
     bool hasEnrollment = false;
     for (size_t i = 0; i < enrollments.size(); ++i) {
